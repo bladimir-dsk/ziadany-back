@@ -26,4 +26,20 @@ import { ApiBearerAuth } from '@nestjs/swagger';
 @Controller('empresa')
 export class EmpresaController {
   constructor(private readonly empresaService: EmpresaService) {}
+
+  @Get()
+  @Auth(Role.EMPRESA)
+  async getEmpresa(@ActiveUser() user: UserActiveInterface) {
+    return this.empresaService.getEmpresa(user);
+  }
+
+  @Patch(':id')
+  @Auth(Role.EMPRESA)
+  async updateEmpresa(
+    @Param('id') id: number,
+    @Body() updateEmpresaDto: UpdateEmpresaDto,
+    @ActiveUser() user: UserActiveInterface,
+  ) {
+    return this.empresaService.updateEmpresa(id, updateEmpresaDto, user);
+  }
 }

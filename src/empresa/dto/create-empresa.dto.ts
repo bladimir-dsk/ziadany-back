@@ -16,11 +16,6 @@ export class CreateEmpresaDto {
   nombre: string;
 
   @ApiProperty()
-  @IsBoolean()
-  @Type(() => Boolean)
-  estado?: boolean;
-
-  @ApiProperty()
   @IsString()
   @MaxLength(13, { message: 'El RFC no puede tener más de 13 caracteres' })
   @MinLength(12, { message: 'El RFC no puede tener menos de 12 caracteres' })

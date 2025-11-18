@@ -6,11 +6,6 @@ import { Empresa } from './entities/empresa.entity';
 import { Repository } from 'typeorm';
 import { UserActiveInterface } from 'src/common/interfaces/user-active.interface';
 import { User } from 'src/users/entities/user.entity';
-import { Role } from 'src/common/enums/rol.enum';
-import e from 'express';
-import * as fs from 'fs';
-import { extname } from 'path';
-import * as path from 'path';
 
 @Injectable()
 export class EmpresaService {
@@ -19,4 +14,39 @@ export class EmpresaService {
     private readonly empresaRepository: Repository<Empresa>,
     @InjectRepository(User) private readonly userRepository: Repository<User>,
   ) {}
+  async getEmpresa(user: UserActiveInterface) {
+    return this.empresaRepository.find({
+      where: {
+        id_empresa: user.id_empresa,
+      },
+    });
+  }
+  async updateEmpresa(
+    id: number,
+    updateEmpresaDto: UpdateEmpresaDto,
+    user: UserActiveInterface,
+  ) {
+    const usuario = await this.userRepository.findOne({
+      where: { email: user.email },
+      relations: ['empresa'],
+    });
+
+    if (!usuario) {
+      throw new BadRequestException('Usuario no encontrado');
+    }
+    const empresa = await this.empresaRepository.findOne({
+      where: { id_empresa: id },
+    });
+
+    if (!empresa) {
+      throw new BadRequestException('Empresa no encontrada');
+    }
+    await this.empresaRepository.update(id, {
+      ...updateEmpresaDto,
+      id_empresa: user.id_empresa,
+    });
+    return this.empresaRepository.findOne({
+      where: { id_empresa: id },
+    });
+  }
 }

@@ -1,39 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Transform, Type } from 'class-transformer';
-import {
-  IsBoolean,
-  IsDateString,
-  IsEmail,
-  IsInt,
-  IsNumber,
-  IsOptional,
-  IsString,
-  MaxLength,
-  MinLength,
-  ValidateNested,
-} from 'class-validator';
-import { CreateEmpresaDto } from 'src/empresa/dto/create-empresa.dto';
-
-// class EmpresaDto {
-//     @IsString()
-//     nombre: string;
-
-//     @IsNumber()
-//     id_planVigencia: number;
-// }
-
-// class PagoDto {
-//     @IsNumber()
-//     monto: number;
-
-//     @IsBoolean()
-//     @Type(() => Boolean)
-//     estado: boolean;
-
-//      @IsInt()
-//     id_planVigencia: number
-// }
-
+import { Transform } from 'class-transformer';
+import { IsEmail, IsString, MinLength } from 'class-validator';
 export class RegisterDto {
   @ApiProperty()
   @Transform(({ value }) => value.trim())
@@ -51,15 +18,4 @@ export class RegisterDto {
   @IsString()
   @MinLength(6)
   pwdPassword: string;
-
-  // @ApiProperty()
-  // @IsOptional() // Marca la propiedad como opcional
-  //  @ValidateNested() // Valida el objeto anidado
-  //  @Type(() => CreateEmpresaDto) // Transforma el objeto anidado
-  //  empresa?: CreateEmpresaDto;
-
-  // @IsOptional() // Marca la propiedad como opcional
-  //  @ValidateNested() // Valida el objeto anidado
-  //  @Type(() => PagoDto) // Transforma el objeto anidado
-  //  pago?: PagoDto;
 }
