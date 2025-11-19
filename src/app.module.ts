@@ -9,6 +9,8 @@ import { PerfilModule } from './perfil/perfil.module';
 import { EstatusModule } from './estatus/estatus.module';
 import * as dotenv from 'dotenv';
 import { ConfigModule } from '@nestjs/config';
+import { ZonaModule } from './zona/zona.module';
+import { ClientesModule } from './clientes/clientes.module';
 
 dotenv.config();
 
@@ -44,6 +46,8 @@ dotenv.config();
     ModulosModule,
     PerfilModule,
     EstatusModule,
+    ZonaModule,
+    ClientesModule,
   ],
   controllers: [],
   providers: [],

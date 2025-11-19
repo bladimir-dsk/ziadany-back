@@ -1,6 +1,7 @@
 import { create } from 'domain';
 import { Empleado } from 'src/empleado/entities/empleado.entity';
 import { User } from 'src/users/entities/user.entity';
+import { Zona } from 'src/zona/entities/zona.entity';
 import {
   Column,
   CreateDateColumn,
@@ -28,6 +29,9 @@ export class Empresa {
 
   @OneToMany(() => Empleado, (empleado) => empleado.empresa)
   empleado: Empleado[];
+
+  @OneToMany(() => Zona, (zona) => zona.empresa)
+  zona: Zona[];
 
   @CreateDateColumn()
   createdAt: Date;

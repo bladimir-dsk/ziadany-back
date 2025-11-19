@@ -1,39 +1,47 @@
-import { Empleado } from "src/empleado/entities/empleado.entity";
-import { Empresa } from "src/empresa/entities/empresa.entity";
-import { User } from "src/users/entities/user.entity";
-import { Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from "typeorm";
-
+import { Cliente } from 'src/clientes/entities/cliente.entity';
+import { Empleado } from 'src/empleado/entities/empleado.entity';
+import { Empresa } from 'src/empresa/entities/empresa.entity';
+import { User } from 'src/users/entities/user.entity';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 
 @Entity()
 export class Estatus {
+  @PrimaryGeneratedColumn()
+  id_estatus: number;
 
-    @PrimaryGeneratedColumn()
-    id_estatus: number;
+  @Column()
+  nb_estatus: string;
 
-    @Column()
-    nb_estatus: string;
+  @Column()
+  tp_estatus: string;
 
-    @Column()
-    tp_estatus: string;
+  @Column()
+  cv_estatus: string;
 
-    @Column()
-    cv_estatus: string;
+  @OneToMany(() => Empleado, (empleado) => empleado.estatus)
+  empleado: Empleado[];
 
-    @OneToMany(() => Empleado, (empleado) => empleado.estatus)
-    empleado: Empleado[]
+  @ManyToOne(() => Empresa, (empresa) => empresa.empleado)
+  @JoinColumn({ name: 'id_empresa' })
+  empresa: Empresa;
 
-    @ManyToOne(() => Empresa, empresa => empresa.empleado)
-    @JoinColumn({name: 'id_empresa'})
-    empresa: Empresa;
+  @Column({ nullable: true })
+  userEmail: string;
 
-    @Column({nullable: true})
-    userEmail: string;
+  // @Column()
+  // id_empresas: number;
 
-    // @Column()
-    // id_empresas: number;
+  @ManyToOne(() => User, (user) => user.id)
+  @JoinColumn({ name: 'userEmail', referencedColumnName: 'email' })
+  user: User;
 
-    @ManyToOne(() => User, (user) => user.id)
-    @JoinColumn({name: 'userEmail', referencedColumnName: 'email', })
-    user: User;
-
+  @OneToMany(() => Cliente, (cliente) => cliente.estatus)
+  cliente: Cliente[];
 }
