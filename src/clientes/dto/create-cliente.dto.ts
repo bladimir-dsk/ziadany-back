@@ -31,10 +31,6 @@ export class CreateClienteDto {
   longitude: string;
 
   @ApiProperty()
-  @IsString()
-  status: string;
-
-  @ApiProperty()
   @IsInt()
   id_estatus: number;
 

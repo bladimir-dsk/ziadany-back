@@ -38,9 +38,6 @@ export class Cliente {
   @Column()
   longitude: string;
 
-  @Column()
-  status: string;
-
   @CreateDateColumn()
   createdAt: Date;
 
