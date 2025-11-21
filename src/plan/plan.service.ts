@@ -7,6 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Empresa } from 'src/empresa/entities/empresa.entity';
 import { Estatus } from 'src/estatus/entities/estatus.entity';
 import { UserActiveInterface } from 'src/common/interfaces/user-active.interface';
+import { PlanVigencia } from 'src/plan-vigencia/entities/plan-vigencia.entity';
 
 @Injectable()
 export class PlanService {
@@ -17,6 +18,8 @@ export class PlanService {
     private readonly empresaRepository: Repository<Empresa>,
     @InjectRepository(Estatus)
     private readonly estatusRepository: Repository<Estatus>,
+    @InjectRepository(PlanVigencia)
+    private readonly planVigenciaRepository: Repository<PlanVigencia>,
   ) {}
   async create(createPlanDto: CreatePlanDto, user: UserActiveInterface) {
     const empresa = await this.empresaRepository.findOne({
@@ -48,7 +51,7 @@ export class PlanService {
       where: {
         empresa: { id_empresa: user.id_empresa },
       },
-      relations: ['estatus'],
+      relations: ['estatus', 'planVigencia'],
     });
   }
 
@@ -58,7 +61,7 @@ export class PlanService {
         id_plan: id,
         empresa: { id_empresa: user.id_empresa },
       },
-      relations: ['estatus'],
+      relations: ['estatus', 'planVigencia'],
     });
     if (!plan) {
       throw new BadRequestException('Plan no encontrado');
