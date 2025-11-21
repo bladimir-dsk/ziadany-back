@@ -11,6 +11,8 @@ import * as dotenv from 'dotenv';
 import { ConfigModule } from '@nestjs/config';
 import { ZonaModule } from './zona/zona.module';
 import { ClientesModule } from './clientes/clientes.module';
+import { PlanModule } from './plan/plan.module';
+import { PlanVigenciaModule } from './plan-vigencia/plan-vigencia.module';
 
 dotenv.config();
 
@@ -48,6 +50,8 @@ dotenv.config();
     EstatusModule,
     ZonaModule,
     ClientesModule,
+    PlanModule,
+    PlanVigenciaModule,
   ],
   controllers: [],
   providers: [],

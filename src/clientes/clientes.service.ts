@@ -71,14 +71,18 @@ export class ClientesService {
     });
   }
 
-  findOne(id: number, user: UserActiveInterface) {
-    return this.clienteRepository.findOne({
+  async findOne(id: number, user: UserActiveInterface) {
+    const cliente = await this.clienteRepository.findOne({
       where: {
         id_cliente: id,
         empresa: { id_empresa: user.id_empresa },
       },
       relations: ['zona', 'estatus'],
     });
+    if (!cliente) {
+      throw new BadRequestException('Cliente no encontrado');
+    }
+    return cliente;
   }
 
   update(id: number, updateClienteDto: UpdateClienteDto) {
