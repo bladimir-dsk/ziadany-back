@@ -37,4 +37,8 @@ export class CreateClienteDto {
   @ApiProperty()
   @IsInt()
   id_zona: number;
+
+  @ApiProperty()
+  @IsInt()
+  id_planVigencia: number;
 }

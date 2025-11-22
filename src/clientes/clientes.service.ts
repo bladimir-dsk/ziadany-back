@@ -8,6 +8,7 @@ import { Empresa } from 'src/empresa/entities/empresa.entity';
 import { Zona } from 'src/zona/entities/zona.entity';
 import { Estatus } from 'src/estatus/entities/estatus.entity';
 import { UserActiveInterface } from 'src/common/interfaces/user-active.interface';
+import { PlanVigencia } from 'src/plan-vigencia/entities/plan-vigencia.entity';
 
 @Injectable()
 export class ClientesService {
@@ -20,6 +21,8 @@ export class ClientesService {
     private readonly zonaRepository: Repository<Zona>,
     @InjectRepository(Estatus)
     private readonly estatusRepository: Repository<Estatus>,
+    @InjectRepository(PlanVigencia)
+    private readonly planVigenciaRepository: Repository<PlanVigencia>,
   ) {}
   async create(createClienteDto: CreateClienteDto, user: UserActiveInterface) {
     const empresa = await this.empresaRepository.findOne({
@@ -52,10 +55,22 @@ export class ClientesService {
     if (!estatus) {
       throw new BadRequestException('Estatus no encontrado');
     }
+    const planVigencia = await this.planVigenciaRepository.findOne({
+      where: {
+        id_planVigencia: createClienteDto.id_planVigencia,
+        empresa: {
+          id_empresa: user.id_empresa,
+        },
+      },
+    });
+    if (!planVigencia) {
+      throw new BadRequestException('PlanVigencia no encontrado');
+    }
     const newCliente = this.clienteRepository.create({
       ...createClienteDto,
       zona: zona,
       estatus: estatus,
+      planVigencia: planVigencia,
       userEmail: user.email,
       empresa: empresa,
     });
@@ -67,7 +82,7 @@ export class ClientesService {
       where: {
         empresa: { id_empresa: user.id_empresa },
       },
-      relations: ['zona', 'estatus'],
+      relations: ['zona', 'estatus', 'planVigencia'],
     });
   }
 
@@ -77,7 +92,7 @@ export class ClientesService {
         id_cliente: id,
         empresa: { id_empresa: user.id_empresa },
       },
-      relations: ['zona', 'estatus'],
+      relations: ['zona', 'estatus', 'planVigencia'],
     });
     if (!cliente) {
       throw new BadRequestException('Cliente no encontrado');

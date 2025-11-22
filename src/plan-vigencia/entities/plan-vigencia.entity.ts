@@ -1,3 +1,4 @@
+import { Cliente } from 'src/clientes/entities/cliente.entity';
 import { Empresa } from 'src/empresa/entities/empresa.entity';
 import { Plan } from 'src/plan/entities/plan.entity';
 import { User } from 'src/users/entities/user.entity';
@@ -6,6 +7,7 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 
@@ -38,4 +40,7 @@ export class PlanVigencia {
   @ManyToOne(() => Plan, (plan) => plan.id_plan)
   @JoinColumn({ name: 'id_plan' })
   plan: Plan;
+
+  @OneToMany(() => Cliente, (cliente) => cliente.id_cliente)
+  cliente: Cliente;
 }

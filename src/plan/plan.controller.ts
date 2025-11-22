@@ -50,7 +50,7 @@ export class PlanController {
   }
 
   @Delete(':id')
-  remove(@Param('id') id: number) {
-    return this.planService.remove(+id);
+  remove(@Param('id') id: number, @ActiveUser() user: UserActiveInterface) {
+    return this.planService.remove(+id, user);
   }
 }
