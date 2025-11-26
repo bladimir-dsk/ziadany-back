@@ -13,6 +13,8 @@ import { ZonaModule } from './zona/zona.module';
 import { ClientesModule } from './clientes/clientes.module';
 import { PlanModule } from './plan/plan.module';
 import { PlanVigenciaModule } from './plan-vigencia/plan-vigencia.module';
+import { SectoresModule } from './sectores/sectores.module';
+import { VerticesModule } from './vertices/vertices.module';
 
 dotenv.config();
 
@@ -52,6 +54,8 @@ dotenv.config();
     ClientesModule,
     PlanModule,
     PlanVigenciaModule,
+    SectoresModule,
+    VerticesModule,
   ],
   controllers: [],
   providers: [],

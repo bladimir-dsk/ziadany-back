@@ -7,6 +7,7 @@ import { Zona } from './entities/zona.entity';
 import { Empresa } from 'src/empresa/entities/empresa.entity';
 import { UserActiveInterface } from 'src/common/interfaces/user-active.interface';
 import { Cliente } from 'src/clientes/entities/cliente.entity';
+import { Vertice } from 'src/vertices/entities/vertice.entity';
 
 @Injectable()
 export class ZonaService {
@@ -17,6 +18,8 @@ export class ZonaService {
     private readonly empresaRepository: Repository<Empresa>,
     @InjectRepository(Cliente)
     private readonly clienteRepository: Repository<Cliente>,
+    @InjectRepository(Vertice)
+    private verticeRepository: Repository<Vertice>,
   ) {}
   async create(createZonaDto: CreateZonaDto, user: UserActiveInterface) {
     const empresa = await this.empresaRepository.findOne({
@@ -30,7 +33,22 @@ export class ZonaService {
       userEmail: user.email,
       empresa: empresa,
     });
-    return this.zonaRepository.save(newZona);
+    const savedZona = await this.zonaRepository.save(newZona);
+
+    const verticesToSave = createZonaDto.vertices.map((v) => {
+      console.log('VERTEX RECIBIDO:', v);
+      return this.verticeRepository.create({
+        ...v,
+        zona: savedZona,
+        empresa: empresa,
+      });
+    });
+    await this.verticeRepository.save(verticesToSave);
+    return {
+      msg: 'Zona creada correctamente',
+      zona: savedZona,
+      vertices: verticesToSave,
+    };
   }
 
   async findAll(user: UserActiveInterface) {
@@ -38,6 +56,7 @@ export class ZonaService {
       where: {
         empresa: { id_empresa: user.id_empresa },
       },
+      relations: ['vertices'],
     });
   }
   async finAllZonaAndClient(user: UserActiveInterface) {
@@ -45,7 +64,7 @@ export class ZonaService {
       where: {
         empresa: { id_empresa: user.id_empresa },
       },
-      relations: ['cliente'],
+      relations: ['cliente', 'vertices'],
     });
   }
   async findClientsLength(user: UserActiveInterface) {
@@ -65,6 +84,7 @@ export class ZonaService {
   async findOne(id: number, user: UserActiveInterface) {
     const zona = await this.zonaRepository.findOne({
       where: { id_zona: id, empresa: { id_empresa: user.id_empresa } },
+      relations: ['vertices'],
     });
     if (!zona) {
       throw new BadRequestException('Zona no encontrada');

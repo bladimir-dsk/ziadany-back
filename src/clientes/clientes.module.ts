@@ -11,6 +11,7 @@ import { ZonaService } from 'src/zona/zona.service';
 import { PlanVigencia } from 'src/plan-vigencia/entities/plan-vigencia.entity';
 import { PlanVigenciaService } from 'src/plan-vigencia/plan-vigencia.service';
 import { Plan } from 'src/plan/entities/plan.entity';
+import { Vertice } from 'src/vertices/entities/vertice.entity';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { Plan } from 'src/plan/entities/plan.entity';
       Zona,
       PlanVigencia,
       Plan,
+      Vertice,
     ]),
   ],
   controllers: [ClientesController],

@@ -1,6 +1,8 @@
 import { Cliente } from 'src/clientes/entities/cliente.entity';
 import { Empresa } from 'src/empresa/entities/empresa.entity';
+import { Sectore } from 'src/sectores/entities/sectore.entity';
 import { User } from 'src/users/entities/user.entity';
+import { Vertice } from 'src/vertices/entities/vertice.entity';
 import {
   Column,
   Entity,
@@ -19,16 +21,7 @@ export class Zona {
   name: string;
 
   @Column()
-  latitude: string;
-
-  @Column()
-  longitude: string;
-
-  @Column()
-  radius: string;
-
-  @Column()
-  color: string;
+  color_fill: string;
 
   @ManyToOne(() => User, (user) => user.email)
   @JoinColumn({ name: 'userEmail', referencedColumnName: 'email' })
@@ -44,4 +37,10 @@ export class Zona {
 
   @OneToMany(() => Cliente, (cliente) => cliente.zona)
   cliente: Cliente[];
+
+  @OneToMany(() => Sectore, (sectore) => sectore.zona)
+  sectore: Sectore[];
+
+  @OneToMany(() => Vertice, (v) => v.zona)
+  vertices: Vertice[];
 }
