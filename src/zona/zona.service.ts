@@ -8,6 +8,7 @@ import { Empresa } from 'src/empresa/entities/empresa.entity';
 import { UserActiveInterface } from 'src/common/interfaces/user-active.interface';
 import { Cliente } from 'src/clientes/entities/cliente.entity';
 import { Vertice } from 'src/vertices/entities/vertice.entity';
+import { Sectore } from 'src/sectores/entities/sectore.entity';
 
 @Injectable()
 export class ZonaService {
@@ -20,6 +21,8 @@ export class ZonaService {
     private readonly clienteRepository: Repository<Cliente>,
     @InjectRepository(Vertice)
     private verticeRepository: Repository<Vertice>,
+    @InjectRepository(Sectore)
+    private sectoreRepository: Repository<Sectore>,
   ) {}
   async create(createZonaDto: CreateZonaDto, user: UserActiveInterface) {
     const empresa = await this.empresaRepository.findOne({
@@ -56,7 +59,7 @@ export class ZonaService {
       where: {
         empresa: { id_empresa: user.id_empresa },
       },
-      relations: ['vertices'],
+      relations: ['vertices', 'sectore', 'sectore.vertices'],
     });
   }
   async finAllZonaAndClient(user: UserActiveInterface) {
@@ -84,7 +87,7 @@ export class ZonaService {
   async findOne(id: number, user: UserActiveInterface) {
     const zona = await this.zonaRepository.findOne({
       where: { id_zona: id, empresa: { id_empresa: user.id_empresa } },
-      relations: ['vertices'],
+      relations: ['vertices', 'sectore', 'sectore.vertices'],
     });
     if (!zona) {
       throw new BadRequestException('Zona no encontrada');
