@@ -8,10 +8,19 @@ import { User } from 'src/users/entities/user.entity';
 import { Cliente } from 'src/clientes/entities/cliente.entity';
 import { Vertice } from 'src/vertices/entities/vertice.entity';
 import { Sectore } from 'src/sectores/entities/sectore.entity';
+import { VerticeZona } from 'src/vertice-zona/entities/vertice-zona.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Zona, Empresa, User, Cliente, Vertice, Sectore]),
+    TypeOrmModule.forFeature([
+      Zona,
+      Empresa,
+      User,
+      Cliente,
+      Vertice,
+      Sectore,
+      VerticeZona,
+    ]),
   ],
   controllers: [ZonaController],
   providers: [ZonaService],

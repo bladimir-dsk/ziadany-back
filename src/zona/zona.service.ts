@@ -7,8 +7,8 @@ import { Zona } from './entities/zona.entity';
 import { Empresa } from 'src/empresa/entities/empresa.entity';
 import { UserActiveInterface } from 'src/common/interfaces/user-active.interface';
 import { Cliente } from 'src/clientes/entities/cliente.entity';
-import { Vertice } from 'src/vertices/entities/vertice.entity';
 import { Sectore } from 'src/sectores/entities/sectore.entity';
+import { VerticeZona } from 'src/vertice-zona/entities/vertice-zona.entity';
 
 @Injectable()
 export class ZonaService {
@@ -19,8 +19,8 @@ export class ZonaService {
     private readonly empresaRepository: Repository<Empresa>,
     @InjectRepository(Cliente)
     private readonly clienteRepository: Repository<Cliente>,
-    @InjectRepository(Vertice)
-    private verticeRepository: Repository<Vertice>,
+    @InjectRepository(VerticeZona)
+    private verticeRepository: Repository<VerticeZona>,
     @InjectRepository(Sectore)
     private sectoreRepository: Repository<Sectore>,
   ) {}
@@ -107,10 +107,33 @@ export class ZonaService {
     if (!zona) {
       throw new BadRequestException('Zona no encontrada');
     }
-    const { ...zonaData } = updateZonaDto;
+
+    if (updateZonaDto.vertices) {
+      const verticesToDelete = await this.verticeRepository.find({
+        where: { zona: { id_zona: id } },
+      });
+      await this.verticeRepository.remove(verticesToDelete);
+
+      const verticesToSave = updateZonaDto.vertices.map((v) =>
+        this.verticeRepository.create({
+          ...v,
+          zona: { id_zona: id },
+          empresa: { id_empresa: user.id_empresa },
+        }),
+      );
+
+      await this.verticeRepository.save(verticesToSave);
+    }
+
+    const { vertices, ...zonaData } = updateZonaDto;
     Object.assign(zona, zonaData);
     zona.userEmail = user.email;
-    return this.zonaRepository.save(zona);
+    const updatedZona = await this.zonaRepository.save(zona);
+    return {
+      message: 'Zona actualizada correctamente',
+      data: updatedZona,
+      vertices: updateZonaDto.vertices,
+    };
   }
 
   async remove(id: number, user: UserActiveInterface) {

@@ -1,5 +1,3 @@
-import { Empresa } from 'src/empresa/entities/empresa.entity';
-import { Sectore } from 'src/sectores/entities/sectore.entity';
 import {
   Column,
   Entity,
@@ -7,11 +5,13 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
+import { Empresa } from 'src/empresa/entities/empresa.entity';
+import { Zona } from 'src/zona/entities/zona.entity';
 
 @Entity()
-export class Vertice {
+export class VerticeZona {
   @PrimaryGeneratedColumn()
-  id_vertice: number;
+  id_verticeZona: number;
 
   @Column()
   latitud: string;
@@ -22,13 +22,11 @@ export class Vertice {
   @Column()
   orden: number;
 
-  //creamos una columna para el email de referencedcolumn
-
   @ManyToOne(() => Empresa, (empresa) => empresa.id_empresa)
   @JoinColumn({ name: 'id_empresa' })
   empresa: Empresa;
 
-  @ManyToOne(() => Sectore, (s) => s.vertices, { nullable: true })
-  @JoinColumn({ name: 'id_sector' })
-  sectore: Sectore;
+  @ManyToOne(() => Zona, (z) => z.vertices)
+  @JoinColumn({ name: 'id_zona' })
+  zona: Zona;
 }

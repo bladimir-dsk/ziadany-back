@@ -70,7 +70,7 @@ export class SectoresService {
           id_empresa: user.id_empresa,
         },
       },
-      relations: ['vertices'],
+      relations: ['zona', 'vertices', 'zona.vertices'],
     });
   }
 
@@ -98,42 +98,45 @@ export class SectoresService {
         id_sectore: id,
         empresa: { id_empresa: user.id_empresa },
       },
-      relations: ['vertices'],
     });
+
     if (!sectore) {
       throw new BadRequestException('Sector no encontrado');
     }
 
-    const zona = await this.zonaRepository.findOne({
-      where: {
-        id_zona: updateSectoreDto.id_zona,
-        empresa: { id_empresa: user.id_empresa },
-      },
-    });
-    if (!zona) {
-      throw new BadRequestException('Zona no encontrada');
+    if (updateSectoreDto.id_zona) {
+      const zona = await this.zonaRepository.findOne({
+        where: {
+          id_zona: updateSectoreDto.id_zona,
+          empresa: { id_empresa: user.id_empresa },
+        },
+      });
+      if (!zona) throw new BadRequestException('Zona no encontrada');
+      sectore.zona = zona;
     }
 
-    Object.assign(sectore, updateSectoreDto);
-    sectore.zona = zona;
-
-    const updatedSectore = await this.sectoreRepository.save(sectore);
-
-    ///vertices
-    const verticesToSave = updateSectoreDto.vertices.map((v) => {
-      console.log('VERTEX RECIBIDO:', v);
-      return this.verticeRepository.create({
-        ...v,
-        sectore: updatedSectore,
-        empresa: { id_empresa: user.id_empresa },
+    if (updateSectoreDto.vertices !== undefined) {
+      const verticesToDelete = await this.verticeRepository.find({
+        where: { sectore: { id_sectore: id } },
       });
-    });
-    await this.verticeRepository.save(verticesToSave);
+      await this.verticeRepository.remove(verticesToDelete);
 
+      const verticesToSave = updateSectoreDto.vertices.map((v) =>
+        this.verticeRepository.create({
+          ...v,
+          sectore: { id_sectore: id },
+          empresa: { id_empresa: user.id_empresa },
+        }),
+      );
+      await this.verticeRepository.save(verticesToSave);
+    }
+
+    const { vertices, ...sectoreData } = updateSectoreDto;
+    Object.assign(sectore, sectoreData);
+    const updatedSectore = await this.sectoreRepository.save(sectore);
     return {
       msg: 'Sector actualizado correctamente',
       sector: updatedSectore,
-      vertices: verticesToSave,
     };
   }
 

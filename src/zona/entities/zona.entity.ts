@@ -2,6 +2,7 @@ import { Cliente } from 'src/clientes/entities/cliente.entity';
 import { Empresa } from 'src/empresa/entities/empresa.entity';
 import { Sectore } from 'src/sectores/entities/sectore.entity';
 import { User } from 'src/users/entities/user.entity';
+import { VerticeZona } from 'src/vertice-zona/entities/vertice-zona.entity';
 import { Vertice } from 'src/vertices/entities/vertice.entity';
 import {
   Column,
@@ -41,6 +42,6 @@ export class Zona {
   @OneToMany(() => Sectore, (sectore) => sectore.zona)
   sectore: Sectore[];
 
-  @OneToMany(() => Vertice, (v) => v.zona)
-  vertices: Vertice[];
+  @OneToMany(() => VerticeZona, (v) => v.zona)
+  vertices: VerticeZona[];
 }
