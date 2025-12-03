@@ -12,6 +12,10 @@ import { Modulo } from 'src/modulos/entities/modulo.entity';
 import { PerfilService } from 'src/perfil/perfil.service';
 import { Estatus } from 'src/estatus/entities/estatus.entity';
 import { EstatusService } from 'src/estatus/estatus.service';
+import { Zona } from 'src/zona/entities/zona.entity';
+import { Sectore } from 'src/sectores/entities/sectore.entity';
+import { VerticeZona } from 'src/vertice-zona/entities/vertice-zona.entity';
+import { Vertice } from 'src/vertices/entities/vertice.entity';
 
 @Module({
   imports: [
@@ -22,6 +26,10 @@ import { EstatusService } from 'src/estatus/estatus.service';
       Perfil,
       Modulo,
       Estatus,
+      Zona,
+      Sectore,
+      VerticeZona,
+      Vertice,
     ]),
   ],
   controllers: [EmpleadoController],

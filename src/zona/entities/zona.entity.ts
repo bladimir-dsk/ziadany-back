@@ -1,4 +1,5 @@
 import { Cliente } from 'src/clientes/entities/cliente.entity';
+import { Empleado } from 'src/empleado/entities/empleado.entity';
 import { Empresa } from 'src/empresa/entities/empresa.entity';
 import { Sectore } from 'src/sectores/entities/sectore.entity';
 import { User } from 'src/users/entities/user.entity';
@@ -8,6 +9,7 @@ import {
   Column,
   Entity,
   JoinColumn,
+  ManyToMany,
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
@@ -44,4 +46,7 @@ export class Zona {
 
   @OneToMany(() => VerticeZona, (v) => v.zona)
   vertices: VerticeZona[];
+
+  @ManyToMany(() => Empleado, (empleado) => empleado.zonas)
+  empleados: Empleado[];
 }

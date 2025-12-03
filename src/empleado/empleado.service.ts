@@ -3,7 +3,7 @@ import { CreateEmpleadoDto } from './dto/create-empleado.dto';
 import { UpdateEmpleadoDto } from './dto/update-empleado.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Empleado } from './entities/empleado.entity';
-import { IsNull, Not, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import { UserActiveInterface } from 'src/common/interfaces/user-active.interface';
 import { Empresa } from 'src/empresa/entities/empresa.entity';
 import { User } from 'src/users/entities/user.entity';
@@ -12,6 +12,7 @@ import { Estatus } from 'src/estatus/entities/estatus.entity';
 import * as bcrypt from 'bcryptjs';
 import { Role } from 'src/common/enums/rol.enum';
 import e from 'express';
+import { Zona } from 'src/zona/entities/zona.entity';
 
 @Injectable()
 export class EmpleadoService {
@@ -25,7 +26,11 @@ export class EmpleadoService {
     private readonly perfilRepository: Repository<Perfil>,
     @InjectRepository(Estatus)
     private readonly estatusRepository: Repository<Estatus>,
+    @InjectRepository(Zona)
+    private readonly zonaRepository: Repository<Zona>,
+    private readonly dataSource: DataSource,
   ) {}
+
   async create(
     createEmpleadoDto: CreateEmpleadoDto,
     user: UserActiveInterface,
@@ -49,7 +54,6 @@ export class EmpleadoService {
     if (!empresa) {
       throw new BadRequestException('Empresa no encontrada');
     }
-
     let perfil;
     if (user.role === Role.SOPORTE) {
       if (!createEmpleadoDto.id_perfil) {
@@ -75,16 +79,13 @@ export class EmpleadoService {
     if (!perfil) {
       throw new BadRequestException('El perfil no existe');
     }
-
     const estatus = await this.estatusRepository.findOneBy({
       id_estatus: createEmpleadoDto.id_estatus,
     });
     if (!estatus) {
       throw new BadRequestException('El estatus no existe');
     }
-
-    let usuario = null;
-    let caja = null;
+    let usuario: User | null = null;
 
     if (!createEmpleadoDto.aplicaEnUsuario && createEmpleadoDto.email) {
       throw new BadRequestException(
@@ -96,11 +97,10 @@ export class EmpleadoService {
       if (
         !createEmpleadoDto.email ||
         !createEmpleadoDto.nbNombres ||
-        !createEmpleadoDto.pwdPassword ||
-        !createEmpleadoDto.id_caja
+        !createEmpleadoDto.pwdPassword
       ) {
         throw new BadRequestException(
-          'Se requiere email, nombre, caja y contraseña si aplicaEnUsuario es verdadero',
+          'Se requiere email, nombre y contraseña si aplicaEnUsuario es verdadero',
         );
       }
 
@@ -108,8 +108,28 @@ export class EmpleadoService {
         email: createEmpleadoDto.email,
       });
 
+      const nombreUsuarioExistente = await this.userRepository.findOneBy({
+        nbNombres: createEmpleadoDto.nbNombres,
+      });
+      if (nombreUsuarioExistente) {
+        throw new BadRequestException('Ya existe un usuario con ese nombre');
+      }
+
       if (usuarioExistente) {
         throw new BadRequestException('Ya existe un usuario con ese email');
+      }
+
+      const existingEmpleadoEmail = await this.empleadoRepository.findOne({
+        where: {
+          email: createEmpleadoDto.email,
+          empresa: { id_empresa: empresa.id_empresa },
+        },
+      });
+
+      if (existingEmpleadoEmail) {
+        throw new BadRequestException(
+          'Ya existe un empleado con ese email para esta empresa',
+        );
       }
 
       const hashedPassword = await bcrypt.hash(
@@ -123,103 +143,104 @@ export class EmpleadoService {
         empresa,
         role: Role.EMPLEADO,
       });
+    }
 
-      usuario = await this.userRepository.save(usuario);
-      const existingEmpleadoEmail = await this.empleadoRepository.findOne({
+    if (createEmpleadoDto.email) {
+      const existingEmpleadoEmailGlobal = await this.empleadoRepository.findOne(
+        {
+          where: {
+            email: createEmpleadoDto.email,
+          },
+        },
+      );
+
+      if (existingEmpleadoEmailGlobal) {
+        throw new BadRequestException('Ya existe un empleado con ese email');
+      }
+    }
+
+    const existingEmpleadoNombreGlobal = await this.empleadoRepository.findOne({
+      where: {
+        nombre: createEmpleadoDto.nombre,
+      },
+    });
+    if (existingEmpleadoNombreGlobal) {
+      throw new BadRequestException('Ya existe un empleado con ese nombre');
+    }
+
+    let zonas: Zona[] = [];
+
+    if (createEmpleadoDto.id_zonas && createEmpleadoDto.id_zonas.length > 0) {
+      zonas = await this.zonaRepository.find({
         where: {
-          email: createEmpleadoDto.email,
+          id_zona: In(createEmpleadoDto.id_zonas),
           empresa: { id_empresa: empresa.id_empresa },
         },
       });
 
-      if (existingEmpleadoEmail) {
+      if (zonas.length !== createEmpleadoDto.id_zonas.length) {
+        const foundIds = zonas.map((z) => z.id_zona);
+        const notFoundIds = createEmpleadoDto.id_zonas.filter(
+          (id) => !foundIds.includes(id),
+        );
+
         throw new BadRequestException(
-          'Ya existe un empleado con ese email para esta empresa',
+          `Una o más zonas no fueron encontradas o no pertenecen a la empresa: ${notFoundIds.join(', ')}`,
         );
       }
-    } else {
-      if (createEmpleadoDto.email) {
-        const existingEmpleadoEmailGlobal =
-          await this.empleadoRepository.findOne({
-            where: {
-              email: createEmpleadoDto.email,
-            },
-          });
 
-        if (existingEmpleadoEmailGlobal) {
-          throw new BadRequestException('Ya existe un empleado con ese email');
-        }
+      if (createEmpleadoDto.aplicaEnUsuario && zonas.length === 0) {
+        throw new BadRequestException(
+          'Es obligatorio asignar al menos una zona cuando aplicaEnUsuario es verdadero.',
+        );
+      }
+    }
+
+    return this.dataSource.transaction(async (manager) => {
+      let usuarioGuardado: User | null = null;
+
+      if (usuario) {
+        usuarioGuardado = await manager.save(User, usuario);
       }
 
-      const empleado = this.empleadoRepository.create({
+      const empleado = manager.create(Empleado, {
         ...createEmpleadoDto,
         userEmail: user.email,
-        user: usuario,
+        user: usuarioGuardado,
         empresa,
         perfil,
         estatus,
         role: Role.EMPLEADO,
-        // caja
+        zonas,
       });
 
-      return await this.empleadoRepository.save(empleado);
-    }
-  }
-  async findAll(user: UserActiveInterface) {
-    if (user.role === Role.SOPORTE) {
-      return await this.empleadoRepository.find({
-        relations: ['empresa', 'user', 'perfil', 'estatus'],
-      });
-    }
-    return await this.empleadoRepository.find({
-      where: { empresa: { id_empresa: user.id_empresa } },
-      relations: ['empresa', 'user', 'perfil', 'estatus'],
+      return await manager.save(Empleado, empleado);
     });
   }
 
-  //filtro de las cajas disponibles que no estan ocupando por empleados
-  // async findCajasDisponibles(user: UserActiveInterface){
+  async findAll(user: UserActiveInterface) {
+    return await this.empleadoRepository.find({
+      where: { empresa: { id_empresa: user.id_empresa } },
+      relations: ['empresa', 'user', 'perfil', 'estatus', 'zonas.vertices'],
+    });
+  }
 
-  //     const todasLasCajas = await this.cajaRepository.find({
-  //       where: {empresa: {
-  //         id_empresa: user.id_empresa
-  //       }},
-  //       order:{
-  //         num_caja: 'DESC'
-  //       }
-  //     })
-  //     const cajasOcupadas = await this.empleadoRepository.find({
-  //       where: {
-  //         empresa: {id_empresa: user.id_empresa},
-  //         caja: Not(IsNull())
-  //       },
-
-  //       relations: ['caja']
-  //     })
-  //     const idsOcupados = new Set(cajasOcupadas.map(c => c.caja.id_caja))
-  //     const cajasDisponibles = todasLasCajas.filter(c => !idsOcupados.has(c.id_caja))
-  //     return cajasDisponibles
-
-  // }
+  async miUsuario(user: UserActiveInterface) {
+    return await this.empleadoRepository.findOne({
+      where: {
+        user: { email: user.email },
+      },
+      relations: ['empresa', 'user', 'perfil', 'estatus', 'perfil.modulo'],
+    });
+  }
 
   async findOne(id: number, user: UserActiveInterface) {
-    if (user.role === Role.SOPORTE) {
-      const empleado = await this.empleadoRepository.findOne({
-        where: { id_empleado: id },
-        relations: ['empresa', 'user', 'perfil', 'estatus'],
-      });
-
-      if (!empleado) {
-        throw new BadRequestException('Empleado no encontrado');
-      }
-      return empleado;
-    }
     const empleado = await this.empleadoRepository.findOne({
       where: {
         id_empleado: id,
         empresa: { id_empresa: user.id_empresa },
       },
-      relations: ['empresa', 'user', 'perfil', 'estatus'],
+      relations: ['empresa', 'user', 'perfil', 'estatus', 'zonas.vertices'],
     });
 
     if (!empleado) {
@@ -233,12 +254,13 @@ export class EmpleadoService {
     updateEmpleadoDto: UpdateEmpleadoDto,
     user: UserActiveInterface,
   ) {
+    const relationsToLoad = ['empresa', 'perfil', 'estatus', 'user', 'zonas'];
     let empleado: Empleado;
 
     if (user.role === Role.SOPORTE) {
       empleado = await this.empleadoRepository.findOne({
         where: { id_empleado: id },
-        relations: ['empresa', 'perfil', 'estatus', 'user'],
+        relations: relationsToLoad,
       });
     } else {
       empleado = await this.empleadoRepository.findOne({
@@ -246,7 +268,7 @@ export class EmpleadoService {
           id_empleado: id,
           empresa: { id_empresa: user.id_empresa },
         },
-        relations: ['empresa', 'perfil', 'estatus', 'user'],
+        relations: relationsToLoad,
       });
     }
 
@@ -281,42 +303,12 @@ export class EmpleadoService {
       empleado.estatus = estatus;
     }
 
-    // let nuevaCaja = null;
-    // if (updateEmpleadoDto.id_caja) {
-    //   nuevaCaja = await this.cajaRepository.findOne({
-    //     where: {
-    //       id_caja: updateEmpleadoDto.id_caja,
-    //       empresa: { id_empresa: empleado.empresa.id_empresa }
-    //     }
-    //   });
-
-    //   if (!nuevaCaja) {
-    //     throw new BadRequestException('La caja no existe');
-    //   }
-
-    //   if (!empleado.caja || empleado.caja.id_caja !== updateEmpleadoDto.id_caja) {
-    //     const cajaOcupada = await this.empleadoRepository.findOne({
-    //       where: {
-    //         caja: { id_caja: updateEmpleadoDto.id_caja },
-    //         empresa: { id_empresa: empleado.empresa.id_empresa },
-    //         user: Not(IsNull()),
-    //         id_empleado: Not(id)
-    //       },
-    //       relations: ['user', 'caja', 'empresa']
-    //     });
-
-    //     if (cajaOcupada) {
-    //       throw new BadRequestException('La caja ya está ocupada por otro empleado');
-    //     }
-    //   }
-
-    //   empleado.caja = nuevaCaja;
-    // }
-
     if (updateEmpleadoDto.email) {
       const existingEmpleadoEmailGlobal = await this.empleadoRepository.findOne(
         {
-          where: { email: updateEmpleadoDto.email },
+          where: {
+            email: updateEmpleadoDto.email,
+          },
         },
       );
 
@@ -331,7 +323,9 @@ export class EmpleadoService {
     if (updateEmpleadoDto.nombre) {
       const existingEmpleadoNombreGlobal =
         await this.empleadoRepository.findOne({
-          where: { nombre: updateEmpleadoDto.nombre },
+          where: {
+            nombre: updateEmpleadoDto.nombre,
+          },
         });
 
       if (
@@ -342,121 +336,135 @@ export class EmpleadoService {
       }
     }
 
-    if (updateEmpleadoDto.aplicaEnUsuario) {
-      // if (!updateEmpleadoDto.id_caja && !empleado.caja) {
-      //   throw new BadRequestException('Se requiere asignar una caja si aplicaEnUsuario es verdadero');
-      // }
+    let zonasAAsignar: Zona[] | undefined = undefined;
 
-      if (!empleado.user) {
-        if (
-          !updateEmpleadoDto.email ||
-          !updateEmpleadoDto.pwdPassword ||
-          !updateEmpleadoDto.nbNombres
-        ) {
-          throw new BadRequestException(
-            'Para crear el usuario, se requiere email, nombre y contraseña',
-          );
-        }
+    if (updateEmpleadoDto.id_zonas !== undefined) {
+      const idZonas = updateEmpleadoDto.id_zonas;
 
-        const existingUser = await this.userRepository.findOneBy({
-          email: updateEmpleadoDto.email,
-        });
-
-        if (existingUser) {
-          throw new BadRequestException('Ya existe un usuario con ese email');
-        }
-
-        const existingUserName = await this.userRepository.findOneBy({
-          nbNombres: updateEmpleadoDto.nbNombres,
-        });
-
-        if (existingUserName) {
-          throw new BadRequestException('Ya existe un usuario con ese nombre');
-        }
-
-        const hashedPassword = await bcrypt.hash(
-          updateEmpleadoDto.pwdPassword,
-          10,
-        );
-
-        const newUser = this.userRepository.create({
-          nbNombres: updateEmpleadoDto.nbNombres,
-          email: updateEmpleadoDto.email,
-          pwdPassword: hashedPassword,
-          empresa: empleado.empresa,
-          role: Role.EMPLEADO,
-        });
-
-        empleado.user = await this.userRepository.save(newUser);
+      if (idZonas.length === 0) {
+        zonasAAsignar = [];
       } else {
-        if (updateEmpleadoDto.pwdPassword) {
-          empleado.user.pwdPassword = await bcrypt.hash(
-            updateEmpleadoDto.pwdPassword,
-            10,
+        zonasAAsignar = await this.zonaRepository.find({
+          where: {
+            id_zona: In(idZonas),
+            empresa: { id_empresa: empleado.empresa.id_empresa },
+          },
+        });
+
+        if (zonasAAsignar.length !== idZonas.length) {
+          const foundIds = zonasAAsignar.map((z) => z.id_zona);
+          const notFoundIds = idZonas.filter((id) => !foundIds.includes(id));
+
+          throw new BadRequestException(
+            `Una o más zonas no fueron encontradas o no pertenecen a la empresa: ${notFoundIds.join(', ')}`,
           );
         }
 
-        if (updateEmpleadoDto.nbNombres) {
-          const existingUserName = await this.userRepository.findOneBy({
-            nbNombres: updateEmpleadoDto.nbNombres,
-          });
+        const aplicaUsuarioActualizado =
+          updateEmpleadoDto.aplicaEnUsuario ?? empleado.aplicaEnUsuario;
 
-          if (existingUserName && existingUserName.id !== empleado.user.id) {
+        if (aplicaUsuarioActualizado && zonasAAsignar.length === 0) {
+          throw new BadRequestException(
+            'Es obligatorio asignar al menos una zona cuando aplicaEnUsuario es verdadero.',
+          );
+        }
+      }
+    }
+
+    return this.dataSource.transaction(async (manager) => {
+      if (updateEmpleadoDto.aplicaEnUsuario) {
+        if (!empleado.user) {
+          if (
+            !updateEmpleadoDto.email ||
+            !updateEmpleadoDto.pwdPassword ||
+            !updateEmpleadoDto.nbNombres
+          ) {
             throw new BadRequestException(
-              'Ya existe otro usuario con ese nombre',
+              'Para crear el usuario, se requiere email, nombre y contraseña',
             );
           }
 
-          empleado.user.nbNombres = updateEmpleadoDto.nbNombres;
-        }
-
-        if (updateEmpleadoDto.email) {
           const existingUser = await this.userRepository.findOneBy({
             email: updateEmpleadoDto.email,
           });
+          if (existingUser)
+            throw new BadRequestException('Ya existe un usuario con ese email');
 
-          if (existingUser && existingUser.id !== empleado.user.id) {
+          const existingUserName = await this.userRepository.findOneBy({
+            nbNombres: updateEmpleadoDto.nbNombres,
+          });
+          if (existingUserName)
             throw new BadRequestException(
-              'Ya existe otro usuario con ese email',
+              'Ya existe un usuario con ese nombre',
+            );
+
+          const hashedPassword = await bcrypt.hash(
+            updateEmpleadoDto.pwdPassword,
+            10,
+          );
+
+          const newUser = manager.create(User, {
+            nbNombres: updateEmpleadoDto.nbNombres,
+            email: updateEmpleadoDto.email,
+            pwdPassword: hashedPassword,
+            empresa: empleado.empresa,
+            role: Role.EMPLEADO,
+          });
+
+          empleado.user = await manager.save(User, newUser);
+        } else {
+          if (updateEmpleadoDto.pwdPassword) {
+            empleado.user.pwdPassword = await bcrypt.hash(
+              updateEmpleadoDto.pwdPassword,
+              10,
             );
           }
 
-          empleado.user.email = updateEmpleadoDto.email;
+          if (updateEmpleadoDto.nbNombres) {
+            const existingUserName = await this.userRepository.findOneBy({
+              nbNombres: updateEmpleadoDto.nbNombres,
+            });
+            if (existingUserName && existingUserName.id !== empleado.user.id) {
+              throw new BadRequestException(
+                'Ya existe otro usuario con ese nombre',
+              );
+            }
+            empleado.user.nbNombres = updateEmpleadoDto.nbNombres;
+          }
+
+          if (updateEmpleadoDto.email) {
+            const existingUser = await this.userRepository.findOneBy({
+              email: updateEmpleadoDto.email,
+            });
+            if (existingUser && existingUser.id !== empleado.user.id) {
+              throw new BadRequestException(
+                'Ya existe otro usuario con ese email',
+              );
+            }
+            empleado.user.email = updateEmpleadoDto.email;
+          }
+
+          await manager.save(empleado.user);
         }
-
-        await this.userRepository.save(empleado.user);
       }
-    } else {
-      // if (empleado.aplicaEnUsuario && updateEmpleadoDto.aplicaEnUsuario === false) {
-      //   empleado.caja = null;
-      // }
-    }
+      const {
+        id_perfil,
+        id_estatus,
+        aplicaEnUsuario,
+        pwdPassword,
+        id_zonas,
+        ...empleadoData
+      } = updateEmpleadoDto;
 
-    const {
-      id_perfil,
-      id_estatus,
-      aplicaEnUsuario,
-      pwdPassword,
-      ...empleadoData
-    } = updateEmpleadoDto;
-    Object.assign(empleado, empleadoData);
+      Object.assign(empleado, empleadoData);
+      empleado.aplicaEnUsuario = aplicaEnUsuario ?? empleado.aplicaEnUsuario;
 
-    empleado.aplicaEnUsuario = aplicaEnUsuario;
-
-    if (updateEmpleadoDto.nombre && empleado.user) {
-      const existingUserName = await this.userRepository.findOneBy({
-        nbNombres: updateEmpleadoDto.nombre,
-      });
-
-      if (existingUserName && existingUserName.id !== empleado.user.id) {
-        throw new BadRequestException('Ya existe otro usuario con ese nombre');
+      if (zonasAAsignar !== undefined) {
+        empleado.zonas = zonasAAsignar;
       }
 
-      empleado.user.nbNombres = updateEmpleadoDto.nombre;
-      await this.userRepository.save(empleado.user);
-    }
-
-    return await this.empleadoRepository.save(empleado);
+      return await manager.save(empleado);
+    });
   }
 
   async remove(id: number, user: UserActiveInterface) {
@@ -486,16 +494,8 @@ export class EmpleadoService {
     return this.empleadoRepository.remove(empleado);
   }
 
+  ///filtrar si aplica en usuario para la empresa
   async findEmpleadoAplicaUsuario(user: UserActiveInterface) {
-    if (user.role === Role.SOPORTE) {
-      const empleado = await this.empleadoRepository.find({
-        where: {
-          aplicaEnUsuario: true,
-        },
-        relations: ['empresa', 'user', 'perfil', 'estatus'],
-      });
-      return empleado;
-    }
     const empleado = await this.empleadoRepository.find({
       where: {
         empresa: {
@@ -503,11 +503,12 @@ export class EmpleadoService {
         },
         aplicaEnUsuario: true,
       },
-      relations: ['empresa', 'user', 'perfil', 'estatus'],
+      relations: ['empresa', 'user', 'perfil', 'estatus', 'zonas.vertices'],
     });
     return empleado;
   }
 
+  //filtrar si no aplica en usuario para la empresa
   async findEmpleadoNoAplicaUsuario(user: UserActiveInterface) {
     const empleado = await this.empleadoRepository.find({
       where: {
@@ -516,7 +517,7 @@ export class EmpleadoService {
         },
         aplicaEnUsuario: false,
       },
-      relations: ['empresa', 'user', 'perfil', 'estatus'],
+      relations: ['empresa', 'user', 'perfil', 'estatus', 'zonas.vertices'],
     });
     return empleado;
   }

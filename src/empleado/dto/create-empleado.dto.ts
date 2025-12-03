@@ -1,58 +1,55 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
-    IsBoolean,
-    IsEmail,
-    IsInt,
-    IsOptional,
-    IsString,
-    ValidateIf,
-  } from 'class-validator';
-  
-  export class CreateEmpleadoDto {
+  IsArray,
+  IsBoolean,
+  IsEmail,
+  IsInt,
+  IsOptional,
+  IsString,
+  ValidateIf,
+} from 'class-validator';
 
-    @ApiProperty()
-    @IsString()
-    nombre: string;
-  
-    @ApiProperty()
-    @IsOptional()
-    @IsInt()
-    id_empresa?: number;
+export class CreateEmpleadoDto {
+  @ApiProperty()
+  @IsString()
+  nombre: string;
 
+  @ApiProperty()
+  @IsOptional()
+  @IsInt()
+  id_empresa?: number;
 
-    @ApiProperty()
-    @IsOptional()
-    @IsInt()
-    id_caja?: number;
-  
-    @ApiProperty()
-    @IsInt()
-    id_perfil: number;
-  
-    @ApiProperty()
-    @IsInt()
-    id_estatus: number;
-  
-    @ApiProperty()
-    @IsBoolean()
-    aplicaEnUsuario: boolean;
-  
+  @ApiProperty()
+  @IsInt()
+  id_perfil: number;
 
-    @ApiProperty()
-    @ValidateIf(o => o.aplicaEnUsuario === true)
-    @IsString()
-    nbNombres?: string;
-  
+  @ApiProperty()
+  @IsInt()
+  id_estatus: number;
 
-    @ApiProperty()
-    @ValidateIf(o => o.aplicaEnUsuario === true)
-    @IsEmail()
-    email?: string;
-  
+  @ApiProperty()
+  @IsBoolean()
+  aplicaEnUsuario: boolean;
 
-    @ApiProperty()
-    @ValidateIf(o => o.aplicaEnUsuario === true)
-    @IsString()
-    pwdPassword?: string;
-  }
-  
+  @ApiProperty()
+  @ValidateIf((o) => o.aplicaEnUsuario === true)
+  @IsString()
+  nbNombres?: string;
+
+  @ApiProperty()
+  @ValidateIf((o) => o.aplicaEnUsuario === true)
+  @IsEmail()
+  email?: string;
+
+  @ApiProperty()
+  @ValidateIf((o) => o.aplicaEnUsuario === true)
+  @IsString()
+  pwdPassword?: string;
+
+  // 🆕 NUEVA PROPIEDAD PARA LAS ZONAS
+  @ApiProperty({ type: [Number], required: false })
+  @IsOptional() // Hacemos la asignación opcional en el DTO
+  @IsArray()
+  @IsInt({ each: true }) // Asegura que cada elemento del array es un entero (el ID de la zona)
+  id_zonas?: number[];
+}

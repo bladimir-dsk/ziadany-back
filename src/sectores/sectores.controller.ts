@@ -35,6 +35,14 @@ export class SectoresController {
     return this.sectoresService.findAll(user);
   }
 
+  @Get('zona/:id_zona')
+  findSectoresByZona(
+    @Param('id_zona') id_zona: number,
+    @ActiveUser() user: UserActiveInterface,
+  ) {
+    return this.sectoresService.findByZona(id_zona, user);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: number, @ActiveUser() user: UserActiveInterface) {
     return this.sectoresService.findOne(+id, user);

@@ -143,4 +143,32 @@ export class SectoresService {
   remove(id: number, user: UserActiveInterface) {
     return `This action removes a #${id} sectore`;
   }
+
+  //FILTRO PARA VER CUALES SECTORES TIENE UNA ZONA ESPECIFICA
+  async findByZona(id_zona: number, user: UserActiveInterface) {
+    const zona = await this.zonaRepository.findOne({
+      where: {
+        id_zona,
+        empresa: { id_empresa: user.id_empresa },
+      },
+    });
+
+    if (!zona) {
+      throw new BadRequestException('Zona no encontrada en esta empresa');
+    }
+
+    const sectores = await this.sectoreRepository.find({
+      where: {
+        zona: { id_zona },
+        empresa: { id_empresa: user.id_empresa },
+      },
+      relations: [],
+    });
+
+    return {
+      zona: zona.name ?? zona.id_zona,
+      total_sectores: sectores.length,
+      sectores,
+    };
+  }
 }

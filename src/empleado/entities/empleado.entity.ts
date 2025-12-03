@@ -2,10 +2,13 @@ import { Empresa } from 'src/empresa/entities/empresa.entity';
 import { Estatus } from 'src/estatus/entities/estatus.entity';
 import { Perfil } from 'src/perfil/entities/perfil.entity';
 import { User } from 'src/users/entities/user.entity';
+import { Zona } from 'src/zona/entities/zona.entity';
 import {
   Column,
   Entity,
   JoinColumn,
+  JoinTable,
+  ManyToMany,
   ManyToOne,
   OneToMany,
   OneToOne,
@@ -47,4 +50,18 @@ export class Empleado {
   @ManyToOne(() => Estatus, (estatus) => estatus.empleado)
   @JoinColumn({ name: 'id_estatus' })
   estatus: Estatus;
+
+  @ManyToMany(() => Zona, (zona) => zona.empleados)
+  @JoinTable({
+    name: 'empleado_zona', // Nombre que tendrá la tabla de unión en la BD
+    joinColumn: {
+      name: 'id_empleado', // Nombre de la columna que referencia a Empleado
+      referencedColumnName: 'id_empleado',
+    },
+    inverseJoinColumn: {
+      name: 'id_zona', // Nombre de la columna que referencia a Zona
+      referencedColumnName: 'id_zona',
+    },
+  })
+  zonas: Zona[];
 }
