@@ -234,6 +234,24 @@ export class EmpleadoService {
     });
   }
 
+  async zonasEmplado(user: UserActiveInterface) {
+    return await this.empleadoRepository.findOne({
+      where: {
+        user: { email: user.email },
+      },
+      relations: ['zonas', 'zonas.vertices'],
+    });
+  }
+
+  async modulosEmpleado(user: UserActiveInterface) {
+    return await this.empleadoRepository.findOne({
+      where: {
+        user: { email: user.email },
+      },
+      relations: ['perfil', 'perfil.modulo'],
+    });
+  }
+
   async findOne(id: number, user: UserActiveInterface) {
     const empleado = await this.empleadoRepository.findOne({
       where: {

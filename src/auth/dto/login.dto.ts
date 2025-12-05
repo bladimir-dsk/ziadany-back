@@ -5,7 +5,7 @@ import { IsEmail, IsString, MinLength } from 'class-validator';
 export class LoginDto {
   @ApiProperty({
     description: 'Correo electrónico del usuario',
-    example: 'elian@gmail.com',
+    example: 'ziadanyadmin@gmail.com',
   })
   @IsEmail({}, { message: 'El correo electrónico no es válido' })
   @Transform(({ value }) => value.trim())

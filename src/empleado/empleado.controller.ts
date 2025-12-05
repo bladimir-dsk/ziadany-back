@@ -40,6 +40,20 @@ export class EmpleadoController {
   // findCajasDisponibles( @ActiveUser() user: UserActiveInterface) {
   //   return this.empleadoService.findCajasDisponibles(user);
   // }
+  @Get('mi-usuario')
+  async miUsuario(@ActiveUser() user: UserActiveInterface) {
+    return this.empleadoService.miUsuario(user);
+  }
+
+  @Get('modulos')
+  async modulosEmpleado(@ActiveUser() user: UserActiveInterface) {
+    return this.empleadoService.modulosEmpleado(user);
+  }
+
+  @Get('zonas')
+  async zonasEmpleado(@ActiveUser() user: UserActiveInterface) {
+    return this.empleadoService.zonasEmplado(user);
+  }
 
   @Get(':id')
   findOne(@Param('id') id: number, @ActiveUser() user: UserActiveInterface) {
