@@ -34,6 +34,14 @@ export class ClientesController {
   findAll(@ActiveUser() user: UserActiveInterface) {
     return this.clientesService.findAll(user);
   }
+  @Get('empleado-maps')
+  findEmpleadoMaps(@ActiveUser() user: UserActiveInterface) {
+    return this.clientesService.findEmpleadoMaps(user);
+  }
+  @Get('mapa/zonas-sectores-clientes')
+  findZonasConSectoresYClientes(@ActiveUser() user: UserActiveInterface) {
+    return this.clientesService.findZonasConSectoresYClientes(user);
+  }
 
   @Get(':id')
   findOne(@Param('id') id: string, @ActiveUser() user: UserActiveInterface) {
@@ -46,7 +54,7 @@ export class ClientesController {
     @Body() updateClienteDto: UpdateClienteDto,
     @ActiveUser() user: UserActiveInterface,
   ) {
-    return this.clientesService.update(+id, updateClienteDto);
+    return this.clientesService.update(+id, updateClienteDto, user);
   }
 
   @Delete(':id')

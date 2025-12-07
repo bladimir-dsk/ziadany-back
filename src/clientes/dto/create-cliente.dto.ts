@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsString } from 'class-validator';
+import { IsInt, IsOptional, IsString } from 'class-validator';
 
 export class CreateClienteDto {
   @ApiProperty()
@@ -40,5 +40,11 @@ export class CreateClienteDto {
 
   @ApiProperty()
   @IsInt()
-  id_planVigencia: number;
+  @IsOptional()
+  id_planVigencia?: number;
+
+  @ApiProperty()
+  @IsInt()
+  @IsOptional()
+  id_sector?: number;
 }

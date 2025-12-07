@@ -104,4 +104,26 @@ export class PlanVigenciaService {
   remove(id: number) {
     return `This action removes a #${id} planVigencia`;
   }
+
+  async findByPlan(id_plan: number, user: UserActiveInterface) {
+    const plan = await this.planRepository.findOne({
+      where: {
+        id_plan,
+        empresa: { id_empresa: user.id_empresa },
+      },
+    });
+    if (!plan) {
+      throw new BadRequestException('Plan no encontrado');
+    }
+    const planVigencias = await this.planVigenciaRepository.find({
+      where: {
+        plan: { id_plan },
+        empresa: { id_empresa: user.id_empresa },
+      },
+    });
+    return {
+      plan: plan.name ?? plan.id_plan,
+      planVigencias,
+    };
+  }
 }

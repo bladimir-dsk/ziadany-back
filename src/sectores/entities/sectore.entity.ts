@@ -1,3 +1,4 @@
+import { Cliente } from 'src/clientes/entities/cliente.entity';
 import { Empresa } from 'src/empresa/entities/empresa.entity';
 import { User } from 'src/users/entities/user.entity';
 import { Vertice } from 'src/vertices/entities/vertice.entity';
@@ -34,4 +35,7 @@ export class Sectore {
   @ManyToOne(() => Zona, (zona) => zona.sectore)
   @JoinColumn({ name: 'id_zona' })
   zona: Zona;
+
+  @OneToMany(() => Cliente, (cliente) => cliente.sector)
+  clientes: Cliente[];
 }

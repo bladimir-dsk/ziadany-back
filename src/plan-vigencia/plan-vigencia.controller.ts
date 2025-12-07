@@ -40,6 +40,14 @@ export class PlanVigenciaController {
     return this.planVigenciaService.findOne(id, user);
   }
 
+  @Get('plan/:id_plan')
+  findByPlan(
+    @Param('id_plan') id_plan: number,
+    @ActiveUser() user: UserActiveInterface,
+  ) {
+    return this.planVigenciaService.findByPlan(id_plan, user);
+  }
+
   @Patch(':id')
   update(
     @Param('id') id: number,
