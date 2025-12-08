@@ -97,7 +97,13 @@ export class ClientesService {
       where: {
         empresa: { id_empresa: user.id_empresa },
       },
-      relations: ['zona', 'estatus', 'planVigencia', 'sector'],
+      relations: [
+        'zona',
+        'estatus',
+        'planVigencia',
+        'sector',
+        'planVigencia.plan',
+      ],
     });
   }
 
@@ -236,7 +242,13 @@ export class ClientesService {
         id_cliente: id,
         empresa: { id_empresa: user.id_empresa },
       },
-      relations: ['zona', 'estatus', 'planVigencia'],
+      relations: [
+        'zona',
+        'estatus',
+        'planVigencia',
+        'sector',
+        'planVigencia.plan',
+      ],
     });
     if (!cliente) {
       throw new BadRequestException('Cliente no encontrado');
