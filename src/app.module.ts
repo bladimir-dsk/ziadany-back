@@ -16,6 +16,9 @@ import { PlanVigenciaModule } from './plan-vigencia/plan-vigencia.module';
 import { SectoresModule } from './sectores/sectores.module';
 import { VerticesModule } from './vertices/vertices.module';
 import { VerticeZonaModule } from './vertice-zona/vertice-zona.module';
+import { SuscripcionClienteModule } from './suscripcion_cliente/suscripcion_cliente.module';
+import { PagoModule } from './pago/pago.module';
+import { HistorialSuscripcionModule } from './historial-suscripcion/historial-suscripcion.module';
 
 dotenv.config();
 
@@ -58,6 +61,9 @@ dotenv.config();
     SectoresModule,
     VerticesModule,
     VerticeZonaModule,
+    SuscripcionClienteModule,
+    PagoModule,
+    HistorialSuscripcionModule,
   ],
   controllers: [],
   providers: [],
