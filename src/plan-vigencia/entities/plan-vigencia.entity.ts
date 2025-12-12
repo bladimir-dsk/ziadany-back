@@ -40,7 +40,4 @@ export class PlanVigencia {
   @ManyToOne(() => Plan, (plan) => plan.id_plan)
   @JoinColumn({ name: 'id_plan' })
   plan: Plan;
-
-  @OneToMany(() => Cliente, (cliente) => cliente.id_cliente)
-  cliente: Cliente;
 }

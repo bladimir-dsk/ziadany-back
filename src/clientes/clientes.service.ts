@@ -8,7 +8,6 @@ import { Empresa } from 'src/empresa/entities/empresa.entity';
 import { Zona } from 'src/zona/entities/zona.entity';
 import { Estatus } from 'src/estatus/entities/estatus.entity';
 import { UserActiveInterface } from 'src/common/interfaces/user-active.interface';
-import { PlanVigencia } from 'src/plan-vigencia/entities/plan-vigencia.entity';
 import { Sectore } from 'src/sectores/entities/sectore.entity';
 
 @Injectable()
@@ -22,8 +21,7 @@ export class ClientesService {
     private readonly zonaRepository: Repository<Zona>,
     @InjectRepository(Estatus)
     private readonly estatusRepository: Repository<Estatus>,
-    @InjectRepository(PlanVigencia)
-    private readonly planVigenciaRepository: Repository<PlanVigencia>,
+
     @InjectRepository(Sectore)
     private readonly sectorRepository: Repository<Sectore>,
   ) {}
@@ -58,33 +56,25 @@ export class ClientesService {
     if (!estatus) {
       throw new BadRequestException('Estatus no encontrado');
     }
-    const planVigencia = await this.planVigenciaRepository.findOne({
-      where: {
-        id_planVigencia: createClienteDto.id_planVigencia,
-        empresa: {
-          id_empresa: user.id_empresa,
+
+    let sector = null;
+
+    if (createClienteDto.id_sector) {
+      sector = await this.sectorRepository.findOne({
+        where: {
+          id_sectore: createClienteDto.id_sector,
+          empresa: { id_empresa: user.id_empresa },
         },
-      },
-    });
-    if (!planVigencia) {
-      throw new BadRequestException('PlanVigencia no encontrado');
-    }
-    const sector = await this.sectorRepository.findOne({
-      where: {
-        id_sectore: createClienteDto.id_sector,
-        empresa: {
-          id_empresa: user.id_empresa,
-        },
-      },
-    });
-    if (!sector) {
-      throw new BadRequestException('Sector no encontrado');
+      });
+
+      if (!sector) {
+        throw new BadRequestException('Sector no encontrado');
+      }
     }
     const newCliente = this.clienteRepository.create({
       ...createClienteDto,
       zona: zona,
       estatus: estatus,
-      planVigencia: planVigencia,
       sector: sector,
       userEmail: user.email,
       empresa: empresa,
@@ -97,13 +87,7 @@ export class ClientesService {
       where: {
         empresa: { id_empresa: user.id_empresa },
       },
-      relations: [
-        'zona',
-        'estatus',
-        'planVigencia',
-        'sector',
-        'planVigencia.plan',
-      ],
+      relations: ['zona', 'estatus', 'sector'],
     });
   }
 
@@ -114,7 +98,6 @@ export class ClientesService {
       },
       relations: [
         'estatus',
-        'planVigencia',
         'sector',
         'sector.vertices',
         'sector.zona',
@@ -142,7 +125,7 @@ export class ClientesService {
       where: {
         empresa: { id_empresa: user.id_empresa },
       },
-      relations: ['zona', 'sector', 'estatus', 'planVigencia'],
+      relations: ['zona', 'sector', 'estatus'],
     });
 
     const zonasConDatos = zonas.map((zona) => {
@@ -174,10 +157,6 @@ export class ClientesService {
               nombre: cliente.estatus?.nb_estatus,
               // color: cliente.estatus?.color,
             },
-            planVigencia: {
-              id_planVigencia: cliente.planVigencia?.id_planVigencia,
-              nombre: cliente.planVigencia?.nombre,
-            },
           })),
           totalClientes: clientesDelSector.length,
         };
@@ -207,10 +186,6 @@ export class ClientesService {
             id_estatus: cliente.estatus?.id_estatus,
             nombre: cliente.estatus?.nb_estatus,
             // color: cliente.estatus?.,
-          },
-          planVigencia: {
-            id_planVigencia: cliente.planVigencia?.id_planVigencia,
-            nombre: cliente.planVigencia?.nombre,
           },
         })),
         totalSectores: sectoresConClientes.length,
@@ -242,13 +217,7 @@ export class ClientesService {
         id_cliente: id,
         empresa: { id_empresa: user.id_empresa },
       },
-      relations: [
-        'zona',
-        'estatus',
-        'planVigencia',
-        'sector',
-        'planVigencia.plan',
-      ],
+      relations: ['zona', 'estatus', 'sector'],
     });
     if (!cliente) {
       throw new BadRequestException('Cliente no encontrado');
@@ -274,7 +243,7 @@ export class ClientesService {
         id_cliente: id,
         empresa: { id_empresa: user.id_empresa },
       },
-      relations: ['zona', 'estatus', 'planVigencia', 'sector'],
+      relations: ['zona', 'estatus', 'sector'],
     });
 
     if (!cliente) {
@@ -311,20 +280,6 @@ export class ClientesService {
       }
     }
 
-    let planVigencia = cliente.planVigencia;
-    if (updateClienteDto.id_planVigencia) {
-      planVigencia = await this.planVigenciaRepository.findOne({
-        where: {
-          id_planVigencia: updateClienteDto.id_planVigencia,
-          empresa: { id_empresa: user.id_empresa },
-        },
-      });
-
-      if (!planVigencia) {
-        throw new BadRequestException('PlanVigencia no encontrado');
-      }
-    }
-
     let sector = cliente.sector;
     if (updateClienteDto.id_sector) {
       sector = await this.sectorRepository.findOne({
@@ -344,7 +299,6 @@ export class ClientesService {
       ...updateClienteDto,
       zona,
       estatus,
-      planVigencia,
       sector,
       userEmail: user.email,
     };

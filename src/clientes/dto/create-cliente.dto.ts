@@ -41,10 +41,5 @@ export class CreateClienteDto {
   @ApiProperty()
   @IsInt()
   @IsOptional()
-  id_planVigencia?: number;
-
-  @ApiProperty()
-  @IsInt()
-  @IsOptional()
   id_sector?: number;
 }

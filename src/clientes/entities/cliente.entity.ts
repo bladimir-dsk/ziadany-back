@@ -1,6 +1,5 @@
 import { Empresa } from 'src/empresa/entities/empresa.entity';
 import { Estatus } from 'src/estatus/entities/estatus.entity';
-import { PlanVigencia } from 'src/plan-vigencia/entities/plan-vigencia.entity';
 import { Sectore } from 'src/sectores/entities/sectore.entity';
 import { User } from 'src/users/entities/user.entity';
 import { Zona } from 'src/zona/entities/zona.entity';
@@ -65,10 +64,6 @@ export class Cliente {
   @ManyToOne(() => Estatus, (estatus) => estatus.cliente)
   @JoinColumn({ name: 'id_estatus' })
   estatus: Estatus;
-
-  @ManyToOne(() => PlanVigencia, (planVigencia) => planVigencia.cliente)
-  @JoinColumn({ name: 'id_planVigencia' })
-  planVigencia: PlanVigencia;
 
   @ManyToOne(() => Sectore, (sectore) => sectore.clientes)
   @JoinColumn({ name: 'id_sector' })
