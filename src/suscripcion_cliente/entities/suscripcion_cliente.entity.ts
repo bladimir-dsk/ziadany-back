@@ -1,5 +1,6 @@
 // src/suscripciones/entities/suscripcion-cliente.entity.ts
 import { Cliente } from 'src/clientes/entities/cliente.entity';
+import { EstadoSuscripcion } from 'src/common/enums/estado-suscripcion.enum';
 import { Empresa } from 'src/empresa/entities/empresa.entity';
 import { Pago } from 'src/pago/entities/pago.entity';
 import { PlanVigencia } from 'src/plan-vigencia/entities/plan-vigencia.entity';
@@ -33,8 +34,12 @@ export class SuscripcionCliente {
   @Column({ type: 'date' })
   fecha_fin: Date;
 
-  @Column({ default: 'activo' })
-  estado: string; // activo | vencido | suspendido
+  @Column({
+    type: 'enum',
+    enum: EstadoSuscripcion,
+    default: EstadoSuscripcion.PENDIENTE_PAGO,
+  })
+  estado: EstadoSuscripcion;
 
   @ManyToOne(() => User, (user) => user.email)
   @JoinColumn({ name: 'userEmail', referencedColumnName: 'email' })

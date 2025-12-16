@@ -1,6 +1,7 @@
 import { Empresa } from 'src/empresa/entities/empresa.entity';
 import { Estatus } from 'src/estatus/entities/estatus.entity';
 import { Sectore } from 'src/sectores/entities/sectore.entity';
+import { SuscripcionCliente } from 'src/suscripcion_cliente/entities/suscripcion_cliente.entity';
 import { User } from 'src/users/entities/user.entity';
 import { Zona } from 'src/zona/entities/zona.entity';
 import {
@@ -9,6 +10,7 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -68,4 +70,7 @@ export class Cliente {
   @ManyToOne(() => Sectore, (sectore) => sectore.clientes)
   @JoinColumn({ name: 'id_sector' })
   sector: Sectore;
+
+  @OneToMany(() => SuscripcionCliente, (suscripcion) => suscripcion.cliente)
+  suscripciones: SuscripcionCliente[];
 }

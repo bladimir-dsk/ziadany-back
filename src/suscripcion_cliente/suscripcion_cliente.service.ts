@@ -12,6 +12,7 @@ import { Cliente } from 'src/clientes/entities/cliente.entity';
 import { PlanVigencia } from 'src/plan-vigencia/entities/plan-vigencia.entity';
 import { UserActiveInterface } from 'src/common/interfaces/user-active.interface';
 import { Empresa } from 'src/empresa/entities/empresa.entity';
+import { EstadoSuscripcion } from 'src/common/enums/estado-suscripcion.enum';
 
 @Injectable()
 export class SuscripcionesService {
@@ -48,6 +49,7 @@ export class SuscripcionesService {
     const cliente = await this.clienteRepo.findOne({
       where: { id_cliente: idCliente },
     });
+
     const vigencia = await this.vigenciaRepo.findOne({
       where: { id_planVigencia: idVigencia },
     });
@@ -64,16 +66,15 @@ export class SuscripcionesService {
         'El cliente ya tiene una suscripción registrada',
       );
     }
+
     const hoy = new Date();
-    const fechaFin = new Date();
-    fechaFin.setDate(hoy.getDate() + vigencia.duracion);
 
     const sus = this.susRepo.create({
       cliente,
       planVigencia: vigencia,
       fecha_inicio: hoy,
-      fecha_fin: fechaFin,
-      estado: 'activo',
+      fecha_fin: hoy,
+      estado: EstadoSuscripcion.PENDIENTE_PAGO,
       userEmail: user.email,
       empresa: { id_empresa: user.id_empresa },
     });
@@ -162,10 +163,19 @@ export class SuscripcionesService {
     const diasPorMes = sus.planVigencia.duracion;
     const diasAplicados = mesesPagados * diasPorMes;
 
+    const hoy = new Date();
+
+    const fechaBase =
+      sus.fecha_fin && new Date(sus.fecha_fin) > hoy
+        ? new Date(sus.fecha_fin)
+        : hoy;
+
+    const nuevaFecha = this.calcularNuevaFecha(fechaBase, diasAplicados);
+
     const fechaAnterior = sus.fecha_fin;
-    const nuevaFecha = this.calcularNuevaFecha(fechaAnterior, diasAplicados);
 
     sus.fecha_fin = nuevaFecha;
+    sus.estado = EstadoSuscripcion.ACTIVA;
     await this.susRepo.save(sus);
 
     const pago = this.pagoRepo.create({
@@ -291,7 +301,7 @@ export class SuscripcionesService {
           id_cliente: cliente.id_cliente,
           cliente,
           tieneSuscripcion: false,
-          estado: 'SIN_SUSCRIPCION',
+          estado: EstadoSuscripcion.SIN_SUSCRIPCION,
         };
       }
 
@@ -304,10 +314,10 @@ export class SuscripcionesService {
         (p) => p.cliente.id_cliente === cliente.id_cliente,
       );
 
-      let estado = 'ACTIVA';
+      let estado = EstadoSuscripcion.ACTIVA;
 
-      if (diasRestantes < 0) estado = 'VENCIDA';
-      else if (!tienePago) estado = 'PENDIENTE_PAGO';
+      if (diasRestantes < 0) estado = EstadoSuscripcion.VENCIDA;
+      else if (!tienePago) estado = EstadoSuscripcion.PENDIENTE_PAGO;
 
       return {
         id_cliente: cliente.id_cliente,
@@ -322,5 +332,92 @@ export class SuscripcionesService {
         dias_restantes: diasRestantes,
       };
     });
+  }
+
+  async resumenClientesSuscripcionConFiltros(
+    user: UserActiveInterface,
+    filters?: {
+      zonas?: number[];
+      estado?: EstadoSuscripcion;
+    },
+  ) {
+    const hoy = new Date();
+
+    const query = this.clienteRepo
+      .createQueryBuilder('cliente')
+      .leftJoinAndSelect('cliente.zona', 'zona')
+      .leftJoinAndSelect('zona.sectore', 'sectores')
+      .leftJoinAndSelect(
+        'cliente.suscripciones',
+        'sus',
+        'sus.empresa = :empresaId',
+        { empresaId: user.id_empresa },
+      )
+      .leftJoinAndSelect('sus.planVigencia', 'planVigencia')
+      .leftJoinAndSelect('planVigencia.plan', 'plan')
+      .where('cliente.empresa = :empresaId', {
+        empresaId: user.id_empresa,
+      });
+
+    // 🔹 Filtro por múltiples zonas
+    if (filters?.zonas?.length) {
+      query.andWhere('zona.id_zona IN (:...zonas)', {
+        zonas: filters.zonas,
+      });
+    }
+
+    const clientes = await query.getMany();
+
+    return clientes
+      .map((cliente) => {
+        const sus = cliente.suscripciones?.[0];
+
+        // 🔸 Cliente sin suscripción
+        if (!sus) {
+          const estado = EstadoSuscripcion.SIN_SUSCRIPCION;
+
+          if (filters?.estado && filters.estado !== estado) return null;
+
+          return {
+            id_cliente: cliente.id_cliente,
+            cliente,
+            zona: cliente.zona, // incluye sectores
+            tieneSuscripcion: false,
+            estado,
+          };
+        }
+
+        const fechaFin = new Date(sus.fecha_fin);
+        const diasRestantes = Math.ceil(
+          (fechaFin.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24),
+        );
+
+        // 🔹 Cálculo real del estado
+        let estado = EstadoSuscripcion.ACTIVA;
+
+        if (diasRestantes < 0) {
+          estado = EstadoSuscripcion.VENCIDA;
+        } else if (sus.estado === EstadoSuscripcion.PENDIENTE_PAGO) {
+          estado = EstadoSuscripcion.PENDIENTE_PAGO;
+        }
+
+        // 🔸 Filtro por estado (si aplica)
+        if (filters?.estado && estado !== filters.estado) return null;
+
+        return {
+          id_cliente: cliente.id_cliente,
+          cliente,
+          zona: cliente.zona,
+          tieneSuscripcion: true,
+          estado,
+          plan: sus.planVigencia.plan?.name,
+          vigencia: sus.planVigencia.nombre,
+          duracion_dias: sus.planVigencia.duracion,
+          fecha_inicio: sus.fecha_inicio,
+          fecha_fin: fechaFin,
+          dias_restantes: diasRestantes,
+        };
+      })
+      .filter(Boolean);
   }
 }

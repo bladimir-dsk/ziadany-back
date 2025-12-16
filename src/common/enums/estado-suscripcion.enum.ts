@@ -1,0 +1,6 @@
+export enum EstadoSuscripcion {
+  PENDIENTE_PAGO = 'PENDIENTE DE PAGO',
+  ACTIVA = 'ACTIVA',
+  VENCIDA = 'VENCIDA',
+  SIN_SUSCRIPCION = 'SIN SUSCRIPCION',
+}

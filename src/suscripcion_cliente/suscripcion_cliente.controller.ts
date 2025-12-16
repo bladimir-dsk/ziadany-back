@@ -1,6 +1,14 @@
 // src/suscripciones/suscripciones.controller.ts
 
-import { Controller, Post, Body, Get, Param, Patch } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  Param,
+  Patch,
+  Query,
+} from '@nestjs/common';
 import { SuscripcionesService } from './suscripcion_cliente.service';
 import { CreateSuscripcionClienteDto } from './dto/create-suscripcion_cliente.dto';
 import { CreatePagoDto } from 'src/pago/dto/create-pago.dto';
@@ -9,6 +17,7 @@ import { UserActiveInterface } from 'src/common/interfaces/user-active.interface
 import { Auth } from 'src/auth/decorators/auth.decorator';
 import { Role } from 'src/common/enums/rol.enum';
 import { ApiBearerAuth } from '@nestjs/swagger';
+import { ResumenSuscripcionFilterDto } from './dto/resumen-suscripcion-filter.dto';
 @ApiBearerAuth('jwt')
 @Auth([Role.EMPLEADO, Role.EMPRESA])
 @Controller('suscripciones')
@@ -23,6 +32,14 @@ export class SuscripcionesController {
   @Get('resumen-clientes')
   resumenClientes(@ActiveUser() user: UserActiveInterface) {
     return this.service.resumenClientesSuscripcion(user);
+  }
+
+  @Get('resumen-filtros')
+  resumen(
+    @ActiveUser() user: UserActiveInterface,
+    @Query() filters: ResumenSuscripcionFilterDto,
+  ) {
+    return this.service.resumenClientesSuscripcionConFiltros(user, filters);
   }
 
   @Get('fecha-corte')
