@@ -20,9 +20,19 @@ export class SuscripcionesController {
     return this.service.fechaCorteCliente(+idCliente);
   }
 
+  @Get('resumen-clientes')
+  resumenClientes(@ActiveUser() user: UserActiveInterface) {
+    return this.service.resumenClientesSuscripcion(user);
+  }
+
   @Get('fecha-corte')
   fechaCorte() {
     return this.service.fechaCorte();
+  }
+
+  @Get()
+  finAllSuscripciones(@ActiveUser() user: UserActiveInterface) {
+    return this.service.finAllSuscripciones(user);
   }
   @Post('crear')
   crearSuscripcion(

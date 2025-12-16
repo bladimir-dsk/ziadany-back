@@ -86,14 +86,12 @@ export class SuscripcionesService {
     idNuevaVigencia: number,
     user: UserActiveInterface,
   ) {
-    // Verificar cliente
     const cliente = await this.clienteRepo.findOne({
       where: { id_cliente: idCliente },
     });
 
     if (!cliente) throw new NotFoundException('Cliente no encontrado');
 
-    // Verificar suscripción
     const sus = await this.susRepo.findOne({
       where: { cliente: { id_cliente: idCliente } },
       relations: ['planVigencia'],
@@ -102,7 +100,6 @@ export class SuscripcionesService {
     if (!sus)
       throw new NotFoundException('El cliente no tiene suscripción activa');
 
-    // Verificar vigencia nueva
     const nuevaVigencia = await this.vigenciaRepo.findOne({
       where: { id_planVigencia: idNuevaVigencia },
     });
@@ -110,37 +107,28 @@ export class SuscripcionesService {
     if (!nuevaVigencia)
       throw new NotFoundException('El nuevo plan de vigencia no existe');
 
-    // Guardar datos previos
-    const vigenciaAnterior = sus.planVigencia;
-    const fechaAnteriorFin = sus.fecha_fin;
-
-    // Calcular nueva fecha_fin (a partir de HOY)
     const hoy = new Date();
-    const nuevaFechaFin = new Date();
-    nuevaFechaFin.setDate(hoy.getDate() + nuevaVigencia.duracion);
+    const fechaFinActual = new Date(sus.fecha_fin);
 
-    // Actualizar suscripción
+    const diasRestantes = Math.max(
+      Math.ceil(
+        (fechaFinActual.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24),
+      ),
+      0,
+    );
+
+    const vigenciaAnterior = sus.planVigencia;
+
     sus.planVigencia = nuevaVigencia;
-    sus.fecha_inicio = hoy;
-    sus.fecha_fin = nuevaFechaFin;
 
     await this.susRepo.save(sus);
-
-    // Guardar historial
-    // await this.histRepo.save(
-    //   this.histRepo.create({
-    //     suscripcion: sus,
-    //     fecha_anterior: fechaAnteriorFin,
-    //     fecha_nueva: nuevaFechaFin,
-    //     motivo: `cambio de vigencia (${vigenciaAnterior.nombre} → ${nuevaVigencia.nombre})`,
-    //   }),
-    // );
 
     return {
       message: 'Vigencia actualizada correctamente',
       vigencia_anterior: vigenciaAnterior.nombre,
       vigencia_nueva: nuevaVigencia.nombre,
-      nueva_fecha_fin: nuevaFechaFin,
+      dias_restantes_actuales: diasRestantes,
+      nota: 'Los días restantes se conservan. Se sumarán los nuevos días al realizar el siguiente pago.',
     };
   }
 
@@ -174,10 +162,10 @@ export class SuscripcionesService {
     const diasPorMes = sus.planVigencia.duracion;
     const diasAplicados = mesesPagados * diasPorMes;
 
-    const fechaAnterior = sus.fecha_inicio;
+    const fechaAnterior = sus.fecha_fin;
     const nuevaFecha = this.calcularNuevaFecha(fechaAnterior, diasAplicados);
 
-    sus.fecha_inicio = nuevaFecha;
+    sus.fecha_fin = nuevaFecha;
     await this.susRepo.save(sus);
 
     const pago = this.pagoRepo.create({
@@ -207,6 +195,31 @@ export class SuscripcionesService {
       message: 'Pago registrado correctamente',
       nuevaFechaFin: nuevaFecha,
     };
+  }
+
+  async finAllSuscripciones(user: UserActiveInterface) {
+    const sus = await this.susRepo.find({
+      where: { empresa: { id_empresa: user.id_empresa } },
+      relations: ['cliente', 'planVigencia'],
+    });
+
+    const finSuscripciones = sus.map((suscripcion) => {
+      const fechaFin = new Date(suscripcion.fecha_fin);
+      const hoy = new Date();
+
+      return {
+        id_suscripcion: suscripcion.id_suscripcion,
+        id_cliente: suscripcion.cliente.id_cliente,
+        cliente: suscripcion.cliente,
+        planVigencia: suscripcion.planVigencia,
+        fecha_fin: fechaFin,
+        dias_restantes: Math.ceil(
+          (fechaFin.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24),
+        ),
+      };
+    });
+
+    return finSuscripciones;
   }
 
   async fechaCorteCliente(idCliente: number) {
@@ -250,5 +263,64 @@ export class SuscripcionesService {
     });
 
     return fechaCorte;
+  }
+
+  async resumenClientesSuscripcion(user: UserActiveInterface) {
+    const clientes = await this.clienteRepo.find({
+      where: { empresa: { id_empresa: user.id_empresa } },
+    });
+
+    const suscripciones = await this.susRepo.find({
+      where: { empresa: { id_empresa: user.id_empresa } },
+      relations: ['cliente', 'planVigencia'],
+    });
+
+    const pagos = await this.pagoRepo.find({
+      relations: ['cliente'],
+    });
+
+    const hoy = new Date();
+
+    return clientes.map((cliente) => {
+      const sus = suscripciones.find(
+        (s) => s.cliente.id_cliente === cliente.id_cliente,
+      );
+
+      if (!sus) {
+        return {
+          id_cliente: cliente.id_cliente,
+          cliente,
+          tieneSuscripcion: false,
+          estado: 'SIN_SUSCRIPCION',
+        };
+      }
+
+      const fechaFin = new Date(sus.fecha_fin);
+      const diasRestantes = Math.ceil(
+        (fechaFin.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24),
+      );
+
+      const tienePago = pagos.some(
+        (p) => p.cliente.id_cliente === cliente.id_cliente,
+      );
+
+      let estado = 'ACTIVA';
+
+      if (diasRestantes < 0) estado = 'VENCIDA';
+      else if (!tienePago) estado = 'PENDIENTE_PAGO';
+
+      return {
+        id_cliente: cliente.id_cliente,
+        cliente,
+        tieneSuscripcion: true,
+        estado,
+        plan: sus.planVigencia.plan?.name ?? null,
+        vigencia: sus.planVigencia.nombre,
+        duracion_dias: sus.planVigencia.duracion,
+        fecha_inicio: sus.fecha_inicio,
+        fecha_fin: fechaFin,
+        dias_restantes: diasRestantes,
+      };
+    });
   }
 }
