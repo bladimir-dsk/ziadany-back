@@ -272,7 +272,7 @@ export class SuscripcionesService {
 
     const suscripciones = await this.susRepo.find({
       where: { empresa: { id_empresa: user.id_empresa } },
-      relations: ['cliente', 'planVigencia'],
+      relations: ['cliente', 'planVigencia', 'planVigencia.plan'],
     });
 
     const pagos = await this.pagoRepo.find({
@@ -314,7 +314,7 @@ export class SuscripcionesService {
         cliente,
         tieneSuscripcion: true,
         estado,
-        plan: sus.planVigencia.plan?.name ?? null,
+        plan: sus.planVigencia.plan?.name,
         vigencia: sus.planVigencia.nombre,
         duracion_dias: sus.planVigencia.duracion,
         fecha_inicio: sus.fecha_inicio,
