@@ -346,6 +346,7 @@ export class SuscripcionesService {
     const query = this.clienteRepo
       .createQueryBuilder('cliente')
       .leftJoinAndSelect('cliente.zona', 'zona')
+      .leftJoinAndSelect('cliente.sector', 'sector')
       .leftJoinAndSelect('zona.sectore', 'sectores')
       .leftJoinAndSelect(
         'cliente.suscripciones',
@@ -381,6 +382,7 @@ export class SuscripcionesService {
           return {
             id_cliente: cliente.id_cliente,
             cliente,
+            sector: cliente.sector,
             zona: cliente.zona, // incluye sectores
             tieneSuscripcion: false,
             estado,
@@ -408,6 +410,7 @@ export class SuscripcionesService {
           id_cliente: cliente.id_cliente,
           cliente,
           zona: cliente.zona,
+          sector: cliente.sector,
           tieneSuscripcion: true,
           estado,
           plan: sus.planVigencia.plan?.name,
