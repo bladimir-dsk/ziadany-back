@@ -409,8 +409,6 @@ export class SuscripcionesService {
         return {
           id_cliente: cliente.id_cliente,
           cliente,
-          zona: cliente.zona,
-          sector: cliente.sector,
           tieneSuscripcion: true,
           estado,
           plan: sus.planVigencia.plan?.name,
