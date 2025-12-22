@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { SuscripcionCliente } from '../suscripcion_cliente/entities/suscripcion_cliente.entity';
 import { Pago } from 'src/pago/entities/pago.entity';
 import { HistorialSuscripcion } from 'src/historial-suscripcion/entities/historial-suscripcion.entity';
@@ -287,6 +287,7 @@ export class SuscripcionesService {
 
     const pagos = await this.pagoRepo.find({
       relations: ['cliente'],
+      order: { fecha_pago: 'DESC' },
     });
 
     const hoy = new Date();
@@ -296,12 +297,20 @@ export class SuscripcionesService {
         (s) => s.cliente.id_cliente === cliente.id_cliente,
       );
 
+      const pagosCliente = pagos.filter(
+        (p) => p.cliente.id_cliente === cliente.id_cliente,
+      );
+
+      const ultimoPago = pagosCliente.length ? pagosCliente[0] : null;
+
       if (!sus) {
         return {
           id_cliente: cliente.id_cliente,
           cliente,
           tieneSuscripcion: false,
           estado: EstadoSuscripcion.SIN_SUSCRIPCION,
+          monto_pago: ultimoPago ? ultimoPago.monto : 0,
+          meses_pagados: ultimoPago ? ultimoPago.meses_pagados : 0,
         };
       }
 
@@ -310,14 +319,10 @@ export class SuscripcionesService {
         (fechaFin.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24),
       );
 
-      const tienePago = pagos.some(
-        (p) => p.cliente.id_cliente === cliente.id_cliente,
-      );
-
       let estado = EstadoSuscripcion.ACTIVA;
 
       if (diasRestantes < 0) estado = EstadoSuscripcion.VENCIDA;
-      else if (!tienePago) estado = EstadoSuscripcion.PENDIENTE_PAGO;
+      else if (!ultimoPago) estado = EstadoSuscripcion.PENDIENTE_PAGO;
 
       return {
         id_cliente: cliente.id_cliente,
@@ -331,6 +336,8 @@ export class SuscripcionesService {
         fecha_inicio: sus.fecha_inicio,
         fecha_fin: fechaFin,
         dias_restantes: diasRestantes,
+        monto_pago: ultimoPago ? ultimoPago.monto : 0,
+        meses_pagados: ultimoPago ? ultimoPago.meses_pagados : 0,
       };
     });
   }
@@ -361,7 +368,6 @@ export class SuscripcionesService {
         empresaId: user.id_empresa,
       });
 
-    // 🔹 Filtro por múltiples zonas
     if (filters?.zonas?.length) {
       query.andWhere('zona.id_zona IN (:...zonas)', {
         zonas: filters.zonas,
@@ -370,23 +376,34 @@ export class SuscripcionesService {
 
     const clientes = await query.getMany();
 
+    const pagos = await this.pagoRepo.find({
+      where: { cliente: { id_cliente: In(clientes.map((c) => c.id_cliente)) } },
+      relations: ['cliente'],
+      order: { fecha_pago: 'DESC' },
+    });
+
     return clientes
       .map((cliente) => {
         const sus = cliente.suscripciones?.[0];
 
-        // 🔸 Cliente sin suscripción
+        const pagosCliente = pagos.filter(
+          (p) => p.cliente.id_cliente === cliente.id_cliente,
+        );
+        const ultimoPago = pagosCliente.length ? pagosCliente[0] : null;
+
         if (!sus) {
           const estado = EstadoSuscripcion.SIN_SUSCRIPCION;
-
           if (filters?.estado && filters.estado !== estado) return null;
 
           return {
             id_cliente: cliente.id_cliente,
             cliente,
             sector: cliente.sector,
-            zona: cliente.zona, // incluye sectores
+            zona: cliente.zona,
             tieneSuscripcion: false,
             estado,
+            monto_pago: ultimoPago ? ultimoPago.monto : 0,
+            meses_pagados: ultimoPago ? ultimoPago.meses_pagados : 0,
           };
         }
 
@@ -395,29 +412,31 @@ export class SuscripcionesService {
           (fechaFin.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24),
         );
 
-        // 🔹 Cálculo real del estado
         let estado = EstadoSuscripcion.ACTIVA;
-
         if (diasRestantes < 0) {
           estado = EstadoSuscripcion.VENCIDA;
         } else if (sus.estado === EstadoSuscripcion.PENDIENTE_PAGO) {
           estado = EstadoSuscripcion.PENDIENTE_PAGO;
         }
 
-        // 🔸 Filtro por estado (si aplica)
         if (filters?.estado && estado !== filters.estado) return null;
 
         return {
           id_cliente: cliente.id_cliente,
           cliente,
+          // sector: cliente.sector,
+          // zona: cliente.zona,
           tieneSuscripcion: true,
           estado,
           plan: sus.planVigencia.plan?.name,
+          precio: sus.planVigencia.precio,
           vigencia: sus.planVigencia.nombre,
           duracion_dias: sus.planVigencia.duracion,
           fecha_inicio: sus.fecha_inicio,
           fecha_fin: fechaFin,
           dias_restantes: diasRestantes,
+          monto_pago: ultimoPago ? ultimoPago.monto : 0,
+          meses_pagados: ultimoPago ? ultimoPago.meses_pagados : 0,
         };
       })
       .filter(Boolean);
