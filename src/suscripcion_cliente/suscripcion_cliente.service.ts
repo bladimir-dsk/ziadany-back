@@ -327,6 +327,7 @@ export class SuscripcionesService {
         plan: sus.planVigencia.plan?.name,
         vigencia: sus.planVigencia.nombre,
         duracion_dias: sus.planVigencia.duracion,
+        precio: sus.planVigencia.precio,
         fecha_inicio: sus.fecha_inicio,
         fecha_fin: fechaFin,
         dias_restantes: diasRestantes,
