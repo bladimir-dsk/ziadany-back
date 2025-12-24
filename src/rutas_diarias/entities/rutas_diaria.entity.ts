@@ -15,25 +15,27 @@ export class RutasDiaria {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ type: 'date' })
+  @Column({ type: 'date', nullable: true })
   fecha: Date;
 
-  @Column({ type: 'time' })
+  @Column({ type: 'time', nullable: true })
   hora_inicio: Date;
 
-  @Column({ type: 'time' })
+  @Column({ type: 'time', nullable: true })
   hora_fin: Date;
 
-  @Column({ type: 'float' })
+  @Column({ type: 'float', nullable: true })
   distancia_recorrida: number;
 
-  @Column()
+  @Column({ nullable: true })
   puntos_completados: number;
 
-  @Column()
+  @Column({ nullable: true })
   estado: string;
 
-  @ManyToOne(() => Empleado, (empleado) => empleado.rutas_diarias)
+  @ManyToOne(() => Empleado, (empleado) => empleado.rutas_diarias, {
+    nullable: true,
+  })
   empleado: Empleado;
 
   @ManyToOne(() => User, (user) => user.email)
