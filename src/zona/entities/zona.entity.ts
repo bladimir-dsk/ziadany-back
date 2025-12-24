@@ -1,6 +1,7 @@
 import { Cliente } from 'src/clientes/entities/cliente.entity';
 import { Empleado } from 'src/empleado/entities/empleado.entity';
 import { Empresa } from 'src/empresa/entities/empresa.entity';
+import { RutasDiaria } from 'src/rutas_diarias/entities/rutas_diaria.entity';
 import { Sectore } from 'src/sectores/entities/sectore.entity';
 import { User } from 'src/users/entities/user.entity';
 import { VerticeZona } from 'src/vertice-zona/entities/vertice-zona.entity';
@@ -49,4 +50,7 @@ export class Zona {
 
   @ManyToMany(() => Empleado, (empleado) => empleado.zonas)
   empleados: Empleado[];
+
+  @OneToMany(() => RutasDiaria, (rutasDiaria) => rutasDiaria.zona)
+  rutas_diarias: RutasDiaria[];
 }

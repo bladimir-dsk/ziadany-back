@@ -1,6 +1,8 @@
 import { Empresa } from 'src/empresa/entities/empresa.entity';
 import { Estatus } from 'src/estatus/entities/estatus.entity';
 import { Perfil } from 'src/perfil/entities/perfil.entity';
+import { RutasDiaria } from 'src/rutas_diarias/entities/rutas_diaria.entity';
+import { UbicacionesCamion } from 'src/ubicaciones_camion/entities/ubicaciones_camion.entity';
 import { User } from 'src/users/entities/user.entity';
 import { Zona } from 'src/zona/entities/zona.entity';
 import {
@@ -64,4 +66,13 @@ export class Empleado {
     },
   })
   zonas: Zona[];
+
+  @OneToMany(
+    () => UbicacionesCamion,
+    (ubicacionesCamion) => ubicacionesCamion.empleado,
+  )
+  ubicaciones_camion: UbicacionesCamion[];
+
+  @OneToMany(() => RutasDiaria, (rutasDiaria) => rutasDiaria.empleado)
+  rutas_diarias: RutasDiaria[];
 }

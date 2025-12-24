@@ -1,5 +1,6 @@
 import { Empresa } from 'src/empresa/entities/empresa.entity';
 import { Estatus } from 'src/estatus/entities/estatus.entity';
+import { PuntosRecoleccion } from 'src/puntos_recoleccion/entities/puntos_recoleccion.entity';
 import { Sectore } from 'src/sectores/entities/sectore.entity';
 import { SuscripcionCliente } from 'src/suscripcion_cliente/entities/suscripcion_cliente.entity';
 import { User } from 'src/users/entities/user.entity';
@@ -73,4 +74,7 @@ export class Cliente {
 
   @OneToMany(() => SuscripcionCliente, (suscripcion) => suscripcion.cliente)
   suscripciones: SuscripcionCliente[];
+
+  @OneToMany(() => PuntosRecoleccion, (punto) => punto.cliente)
+  puntos_recoleccion: PuntosRecoleccion[];
 }

@@ -19,6 +19,9 @@ import { VerticeZonaModule } from './vertice-zona/vertice-zona.module';
 import { SuscripcionClienteModule } from './suscripcion_cliente/suscripcion_cliente.module';
 import { PagoModule } from './pago/pago.module';
 import { HistorialSuscripcionModule } from './historial-suscripcion/historial-suscripcion.module';
+import { UbicacionesCamionModule } from './ubicaciones_camion/ubicaciones_camion.module';
+import { RutasDiariasModule } from './rutas_diarias/rutas_diarias.module';
+import { PuntosRecoleccionModule } from './puntos_recoleccion/puntos_recoleccion.module';
 
 dotenv.config();
 
@@ -64,6 +67,9 @@ dotenv.config();
     SuscripcionClienteModule,
     PagoModule,
     HistorialSuscripcionModule,
+    UbicacionesCamionModule,
+    RutasDiariasModule,
+    PuntosRecoleccionModule,
   ],
   controllers: [],
   providers: [],
