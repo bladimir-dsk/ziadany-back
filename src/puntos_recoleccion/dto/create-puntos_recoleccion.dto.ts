@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsDateString, IsInt, IsNotEmpty, IsString } from 'class-validator';
+import {
+  IsDateString,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 export class CreatePuntosRecoleccionDto {
   @IsString()
   @IsNotEmpty()
@@ -32,7 +38,9 @@ export class CreatePuntosRecoleccionDto {
   // 📝 Notas opcionales
   @IsString()
   @IsNotEmpty()
-  notas: string;
+  @ApiProperty()
+  @IsOptional()
+  notas?: string;
 
   @IsInt()
   @ApiProperty()

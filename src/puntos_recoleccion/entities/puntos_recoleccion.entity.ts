@@ -29,7 +29,7 @@ export class PuntosRecoleccion {
   @Column()
   tipo: string;
 
-  @Column()
+  @Column({ nullable: true })
   notas: string;
 
   @ManyToOne(() => Cliente, (cliente) => cliente.puntos_recoleccion)
