@@ -1,11 +1,10 @@
 // src/pago/pago.service.ts
 import { Injectable } from '@nestjs/common';
-import { CreatePagoDto } from './dto/create-pago.dto';
-import { UpdatePagoDto } from './dto/update-pago.dto';
+
 import { FilterPagoDto } from './dto/filter-pago.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Pago } from './entities/pago.entity';
-import { Repository, Between, MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Empresa } from 'src/empresa/entities/empresa.entity';
 import { UserActiveInterface } from 'src/common/interfaces/user-active.interface';
 
@@ -17,7 +16,6 @@ export class PagoService {
     private readonly empresaRepository: Repository<Empresa>,
   ) {}
 
-  // src/pago/pago.service.ts
   async findAll(user: UserActiveInterface, filters?: FilterPagoDto) {
     const queryBuilder = this.pagoRepository
       .createQueryBuilder('pago')
@@ -28,7 +26,6 @@ export class PagoService {
         id_empresa: user.id_empresa,
       });
 
-    // Aplicar filtros
     if (filters) {
       if (filters.userEmail) {
         queryBuilder.andWhere('pago.userEmail = :userEmail', {
@@ -60,7 +57,6 @@ export class PagoService {
         });
       }
 
-      // Filtros de fecha
       if (filters.fecha_inicio && filters.fecha_final) {
         queryBuilder.andWhere(
           'pago.fecha_pago BETWEEN :fecha_inicio AND :fecha_final',
@@ -79,7 +75,6 @@ export class PagoService {
         });
       }
 
-      // Filtros de monto
       if (filters.monto_min && filters.monto_max) {
         queryBuilder.andWhere('pago.monto BETWEEN :monto_min AND :monto_max', {
           monto_min: filters.monto_min,
@@ -96,7 +91,6 @@ export class PagoService {
       }
     }
 
-    // Obtener los pagos
     const pagos = await queryBuilder
       .orderBy('pago.fecha_pago', 'DESC')
       .getMany();
@@ -111,7 +105,6 @@ export class PagoService {
       return acc;
     }, {});
 
-    // Retornar con resumen extendido
     return {
       pagos,
       resumen: {
