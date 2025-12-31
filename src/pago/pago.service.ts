@@ -150,6 +150,18 @@ export class PagoService {
       .andWhere('DATE(pago.fecha_pago) = :fecha', { fecha })
       .getRawOne();
 
+    const detallesPagos = await this.pagoRepository
+      .createQueryBuilder('pago')
+      .leftJoinAndSelect('pago.cliente', 'cliente')
+      .leftJoinAndSelect('pago.suscripcion', 'suscripcion')
+      .leftJoinAndSelect('pago.user', 'user')
+      .where('pago.empresa.id_empresa = :id_empresa', {
+        id_empresa: user.id_empresa,
+      })
+      .andWhere('DATE(pago.fecha_pago) = :fecha', { fecha })
+      .orderBy('pago.fecha_pago', 'DESC')
+      .getMany();
+
     return {
       fecha,
       total_general: parseFloat(totalGeneral.total) || 0,
@@ -158,6 +170,32 @@ export class PagoService {
         metodo: r.metodo,
         total: parseFloat(r.total) || 0,
         cantidad_pagos: parseInt(r.cantidad_pagos) || 0,
+      })),
+      detalle_pagos: detallesPagos.map((pago) => ({
+        id_pago: pago.id_pago,
+        monto: pago.monto,
+        metodo: pago.metodo,
+        fecha_pago: pago.fecha_pago,
+        meses_pagados: pago.meses_pagados,
+        cliente: {
+          id: pago.cliente?.id_cliente,
+          nombre: pago.cliente?.name,
+          email: pago.cliente?.email,
+          telefono: pago.cliente?.phone,
+        },
+        suscripcion: pago.suscripcion
+          ? {
+              id: pago.suscripcion.id_suscripcion,
+              // otros campos relevantes de suscripción
+            }
+          : null,
+        cobrado_por: pago.userEmail,
+        usuario: pago.user
+          ? {
+              email: pago.user.email,
+              nombre: pago.user.nbNombres,
+            }
+          : null,
       })),
     };
   }
