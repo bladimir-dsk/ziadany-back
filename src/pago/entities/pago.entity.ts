@@ -16,6 +16,9 @@ export class Pago {
   @PrimaryGeneratedColumn()
   id_pago: number;
 
+  @Column({ unique: true })
+  folio: string;
+
   @ManyToOne(() => Cliente)
   @JoinColumn({ name: 'id_cliente' })
   cliente: Cliente;
@@ -41,6 +44,9 @@ export class Pago {
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   fecha_pago: Date;
+
+  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  fechaInicioServicio: Date;
 
   @ManyToOne(() => User, (user) => user.email)
   @JoinColumn({ name: 'userEmail', referencedColumnName: 'email' })

@@ -1,5 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
+  IsDate,
+  IsDateString,
   IsEnum,
   IsIn,
   IsNumber,
@@ -29,4 +31,16 @@ export class CreatePagoDto {
   @ApiProperty()
   @IsString()
   stripePaymentId?: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsOptional()
+  folio?: string;
+
+  @ApiProperty({
+    example: '2026-02-01',
+    description: 'Fecha en la que inicia el servicio',
+  })
+  @IsDateString({}, { message: 'La fecha debe tener formato YYYY-MM-DD' })
+  fechaInicioServicio: string; // 👈 STRING
 }

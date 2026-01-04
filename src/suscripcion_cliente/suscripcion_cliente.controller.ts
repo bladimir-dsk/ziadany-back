@@ -24,11 +24,6 @@ import { ResumenSuscripcionFilterDto } from './dto/resumen-suscripcion-filter.dt
 export class SuscripcionesController {
   constructor(private service: SuscripcionesService) {}
 
-  @Get('fecha-corte/:idCliente')
-  fechaCorteCliente(@Param('idCliente') idCliente: number) {
-    return this.service.fechaCorteCliente(+idCliente);
-  }
-
   @Get('resumen-clientes')
   resumenClientes(@ActiveUser() user: UserActiveInterface) {
     return this.service.resumenClientesSuscripcion(user);
@@ -42,15 +37,11 @@ export class SuscripcionesController {
     return this.service.resumenClientesSuscripcionConFiltros(user, filters);
   }
 
-  @Get('fecha-corte')
-  fechaCorte() {
-    return this.service.fechaCorte();
-  }
-
   @Get()
   finAllSuscripciones(@ActiveUser() user: UserActiveInterface) {
     return this.service.finAllSuscripciones(user);
   }
+
   @Post('crear')
   crearSuscripcion(
     @Body() dto: CreateSuscripcionClienteDto,
@@ -79,6 +70,7 @@ export class SuscripcionesController {
       dto.metodo as 'stripe' | 'efectivo',
       user,
       dto.stripePaymentId,
+      new Date(dto.fechaInicioServicio), // Convert string to Date object
     );
   }
 }

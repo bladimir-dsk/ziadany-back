@@ -139,52 +139,75 @@ export class SuscripcionesService {
     return nueva;
   }
 
+  async generarFolio(): Promise<string> {
+    const ultimoPago = await this.pagoRepo.findOne({
+      where: {
+        empresa: {
+          id_empresa: 1,
+        },
+      },
+      relations: ['cliente'],
+      order: { id_pago: 'ASC' },
+    });
+
+    const consecutivo = ultimoPago ? ultimoPago.id_pago + 1 : 1;
+    const year = new Date().getFullYear();
+
+    return `PAGO-${year}-${consecutivo.toString().padStart(6, '0')}`;
+  }
+
   async registrarPago(
     idCliente: number,
     mesesPagados: number,
     metodo: 'stripe' | 'efectivo',
     user: UserActiveInterface,
     stripe_payment_id?: string,
+    fechaInicioServicio?: Date,
   ) {
     const cliente = await this.clienteRepo.findOne({
       where: { id_cliente: idCliente },
     });
-
     if (!cliente) throw new NotFoundException('Cliente no encontrado');
 
     const sus = await this.susRepo.findOne({
       where: { cliente: { id_cliente: idCliente } },
       relations: ['planVigencia'],
     });
-
     if (!sus)
       throw new NotFoundException('El cliente no tiene suscripción asignada');
 
-    const diasPorMes = sus.planVigencia.duracion;
-    const diasAplicados = mesesPagados * diasPorMes;
+    if (!fechaInicioServicio)
+      throw new BadRequestException(
+        'Debe indicar la fecha de inicio del servicio',
+      );
 
-    const hoy = new Date();
+    const diasPorPeriodo = sus.planVigencia.duracion;
+    const diasAplicados = mesesPagados * diasPorPeriodo;
 
-    const fechaBase =
-      sus.fecha_fin && new Date(sus.fecha_fin) > hoy
-        ? new Date(sus.fecha_fin)
-        : hoy;
-
-    const nuevaFecha = this.calcularNuevaFecha(fechaBase, diasAplicados);
+    const fechaInicio = new Date(fechaInicioServicio);
+    const fechaFin = new Date(fechaInicio);
+    fechaFin.setDate(fechaFin.getDate() + diasAplicados - 1);
 
     const fechaAnterior = sus.fecha_fin;
+    const folio = await this.generarFolio();
 
-    sus.fecha_fin = nuevaFecha;
+    // 🔹 Actualizamos suscripción
+    sus.fecha_inicio = fechaInicio;
+    sus.fecha_fin = fechaFin;
     sus.estado = EstadoSuscripcion.ACTIVA;
+
     await this.susRepo.save(sus);
 
+    // 🔹 Guardamos pago
     const pago = this.pagoRepo.create({
+      folio,
       cliente,
       suscripcion: sus,
       metodo,
       monto: mesesPagados * sus.planVigencia.precio,
       stripe_payment_id: stripe_payment_id || null,
       meses_pagados: mesesPagados,
+      fechaInicioServicio: fechaInicio,
       dias_aplicados: diasAplicados,
       userEmail: user.email,
       empresa: { id_empresa: user.id_empresa },
@@ -192,87 +215,22 @@ export class SuscripcionesService {
 
     await this.pagoRepo.save(pago);
 
+    // 🔹 Historial
     await this.histRepo.save(
       this.histRepo.create({
         suscripcion: sus,
         fecha_anterior: fechaAnterior,
-        fecha_nueva: nuevaFecha,
+        fecha_nueva: fechaFin,
         motivo: 'pago',
       }),
     );
 
     return {
       message: 'Pago registrado correctamente',
-      nuevaFechaFin: nuevaFecha,
+      fechaInicioServicio: fechaInicio,
+      fechaFinServicio: fechaFin,
+      diasAplicados,
     };
-  }
-
-  async finAllSuscripciones(user: UserActiveInterface) {
-    const sus = await this.susRepo.find({
-      where: { empresa: { id_empresa: user.id_empresa } },
-      relations: ['cliente', 'planVigencia'],
-    });
-
-    const finSuscripciones = sus.map((suscripcion) => {
-      const fechaFin = new Date(suscripcion.fecha_fin);
-      const hoy = new Date();
-
-      return {
-        id_suscripcion: suscripcion.id_suscripcion,
-        id_cliente: suscripcion.cliente.id_cliente,
-        cliente: suscripcion.cliente,
-        planVigencia: suscripcion.planVigencia,
-        fecha_fin: fechaFin,
-        dias_restantes: Math.ceil(
-          (fechaFin.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24),
-        ),
-      };
-    });
-
-    return finSuscripciones;
-  }
-
-  async fechaCorteCliente(idCliente: number) {
-    const sus = await this.susRepo.findOne({
-      where: { cliente: { id_cliente: idCliente } },
-      relations: ['cliente', 'planVigencia'],
-    });
-
-    if (!sus) throw new NotFoundException('El cliente no tiene suscripción');
-
-    const fechaFin = new Date(sus.fecha_fin);
-    const hoy = new Date();
-
-    return {
-      cliente: sus.cliente.name,
-      fecha_corte: fechaFin,
-      dias_restantes: Math.ceil(
-        (fechaFin.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24),
-      ),
-    };
-  }
-
-  async fechaCorte() {
-    const sus = await this.susRepo.find({
-      relations: ['cliente', 'planVigencia'],
-    });
-
-    const fechaCorte = sus.map((suscripcion) => {
-      const fechaFin = new Date(suscripcion.fecha_fin);
-      const hoy = new Date();
-
-      return {
-        id_suscripcion: suscripcion.id_suscripcion,
-        id_cliente: suscripcion.cliente.id_cliente,
-        cliente: suscripcion.cliente.name,
-        fecha_corte: fechaFin,
-        dias_restantes: Math.ceil(
-          (fechaFin.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24),
-        ),
-      };
-    });
-
-    return fechaCorte;
   }
 
   async resumenClientesSuscripcion(user: UserActiveInterface) {
@@ -286,6 +244,7 @@ export class SuscripcionesService {
     });
 
     const pagos = await this.pagoRepo.find({
+      where: { empresa: { id_empresa: user.id_empresa } },
       relations: ['cliente'],
       order: { fecha_pago: 'DESC' },
     });
@@ -311,6 +270,7 @@ export class SuscripcionesService {
           estado: EstadoSuscripcion.SIN_SUSCRIPCION,
           monto_pago: ultimoPago ? ultimoPago.monto : 0,
           meses_pagados: ultimoPago ? ultimoPago.meses_pagados : 0,
+          folio_pago: ultimoPago ? ultimoPago.folio : null,
         };
       }
 
@@ -338,6 +298,7 @@ export class SuscripcionesService {
         dias_restantes: diasRestantes,
         monto_pago: ultimoPago ? ultimoPago.monto : 0,
         meses_pagados: ultimoPago ? ultimoPago.meses_pagados : 0,
+        folio_pago: ultimoPago ? ultimoPago.folio : null, // 👈 AQUÍ
       };
     });
   }
@@ -404,6 +365,7 @@ export class SuscripcionesService {
             estado,
             monto_pago: ultimoPago ? ultimoPago.monto : 0,
             meses_pagados: ultimoPago ? ultimoPago.meses_pagados : 0,
+            folio_pago: ultimoPago ? ultimoPago.folio : null,
           };
         }
 
@@ -437,8 +399,34 @@ export class SuscripcionesService {
           dias_restantes: diasRestantes,
           monto_pago: ultimoPago ? ultimoPago.monto : 0,
           meses_pagados: ultimoPago ? ultimoPago.meses_pagados : 0,
+          folio_pago: ultimoPago ? ultimoPago.folio : null,
         };
       })
       .filter(Boolean);
+  }
+
+  async finAllSuscripciones(user: UserActiveInterface) {
+    const sus = await this.susRepo.find({
+      where: { empresa: { id_empresa: user.id_empresa } },
+      relations: ['cliente', 'planVigencia'],
+    });
+
+    const finSuscripciones = sus.map((suscripcion) => {
+      const fechaFin = new Date(suscripcion.fecha_fin);
+      const hoy = new Date();
+
+      return {
+        id_suscripcion: suscripcion.id_suscripcion,
+        id_cliente: suscripcion.cliente.id_cliente,
+        cliente: suscripcion.cliente,
+        planVigencia: suscripcion.planVigencia,
+        fecha_fin: fechaFin,
+        dias_restantes: Math.ceil(
+          (fechaFin.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24),
+        ),
+      };
+    });
+
+    return finSuscripciones;
   }
 }
