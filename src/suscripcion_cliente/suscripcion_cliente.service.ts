@@ -183,7 +183,15 @@ export class SuscripcionesService {
     const diasPorPeriodo = sus.planVigencia.duracion;
     const diasAplicados = mesesPagados * diasPorPeriodo;
 
-    const fechaInicio = new Date(fechaInicioServicio);
+    // 🔹 Parsear la fecha manualmente como YYYY-MM-DD
+    const fechaString =
+      typeof fechaInicioServicio === 'string'
+        ? fechaInicioServicio
+        : fechaInicioServicio.toISOString().split('T')[0];
+
+    const [year, month, day] = fechaString.split('-').map(Number);
+    const fechaInicio = new Date(year, month - 1, day, 0, 0, 0, 0);
+
     const fechaFin = new Date(fechaInicio);
     fechaFin.setDate(fechaFin.getDate() + diasAplicados - 1);
 
