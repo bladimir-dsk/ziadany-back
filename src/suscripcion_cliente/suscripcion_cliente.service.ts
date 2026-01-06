@@ -139,15 +139,14 @@ export class SuscripcionesService {
     return nueva;
   }
 
-  async generarFolio(): Promise<string> {
+  async generarFolio(user: UserActiveInterface): Promise<string> {
     const ultimoPago = await this.pagoRepo.findOne({
       where: {
         empresa: {
-          id_empresa: 1,
+          id_empresa: user.id_empresa, // ✅ Usar empresa del usuario
         },
       },
-      relations: ['cliente'],
-      order: { id_pago: 'ASC' },
+      order: { id_pago: 'DESC' }, // ✅ Orden descendente para obtener el último
     });
 
     const consecutivo = ultimoPago ? ultimoPago.id_pago + 1 : 1;
@@ -189,7 +188,7 @@ export class SuscripcionesService {
     fechaFin.setDate(fechaFin.getDate() + diasAplicados - 1);
 
     const fechaAnterior = sus.fecha_fin;
-    const folio = await this.generarFolio();
+    const folio = await this.generarFolio(user);
 
     // 🔹 Actualizamos suscripción
     sus.fecha_inicio = fechaInicio;
