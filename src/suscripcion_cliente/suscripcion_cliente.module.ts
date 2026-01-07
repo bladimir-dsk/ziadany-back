@@ -15,9 +15,12 @@ import { VerticeZona } from 'src/vertice-zona/entities/vertice-zona.entity';
 import { Empresa } from 'src/empresa/entities/empresa.entity';
 import { Pago } from 'src/pago/entities/pago.entity';
 import { HistorialSuscripcion } from 'src/historial-suscripcion/entities/historial-suscripcion.entity';
+import { ScheduleModule } from '@nestjs/schedule';
+import { SuscripcionesCronService } from './suscripciones-cron.service';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     TypeOrmModule.forFeature([
       SuscripcionCliente,
       Cliente,
@@ -35,7 +38,7 @@ import { HistorialSuscripcion } from 'src/historial-suscripcion/entities/histori
     ]),
   ],
   controllers: [SuscripcionesController],
-  providers: [SuscripcionesService],
+  providers: [SuscripcionesService, SuscripcionesCronService],
   exports: [SuscripcionesService],
 })
 export class SuscripcionClienteModule {}

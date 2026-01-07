@@ -286,16 +286,14 @@ export class SuscripcionesService {
         (fechaFin.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24),
       );
 
-      let estado = EstadoSuscripcion.ACTIVA;
-
-      if (diasRestantes < 0) estado = EstadoSuscripcion.VENCIDA;
-      else if (!ultimoPago) estado = EstadoSuscripcion.PENDIENTE_PAGO;
+      // 🔹 Usar el estado de la DB (actualizado por el cron)
+      const estado = sus.estado;
 
       return {
         id_cliente: cliente.id_cliente,
         cliente,
         tieneSuscripcion: true,
-        estado,
+        estado, // 🔹 Ahora viene directo de la DB
         plan: sus.planVigencia.plan?.name,
         vigencia: sus.planVigencia.nombre,
         duracion_dias: sus.planVigencia.duracion,
@@ -305,7 +303,7 @@ export class SuscripcionesService {
         dias_restantes: diasRestantes,
         monto_pago: ultimoPago ? ultimoPago.monto : 0,
         meses_pagados: ultimoPago ? ultimoPago.meses_pagados : 0,
-        folio_pago: ultimoPago ? ultimoPago.folio : null, // 👈 AQUÍ
+        folio_pago: ultimoPago ? ultimoPago.folio : null,
       };
     });
   }
@@ -315,9 +313,14 @@ export class SuscripcionesService {
     filters?: {
       zonas?: number[];
       estado?: EstadoSuscripcion;
+      mes?: number;
+      anio?: number;
     },
   ) {
     const hoy = new Date();
+
+    const mesActual = filters?.mes ?? hoy.getMonth() + 1;
+    const anioActual = filters?.anio ?? hoy.getFullYear();
 
     const query = this.clienteRepo
       .createQueryBuilder('cliente')
@@ -335,6 +338,14 @@ export class SuscripcionesService {
       .where('cliente.empresa = :empresaId', {
         empresaId: user.id_empresa,
       });
+
+    // 🔹 Sintaxis correcta para PostgreSQL
+    query.andWhere('EXTRACT(MONTH FROM sus.fecha_inicio) = :mes', {
+      mes: mesActual,
+    });
+    query.andWhere('EXTRACT(YEAR FROM sus.fecha_inicio) = :anio', {
+      anio: anioActual,
+    });
 
     if (filters?.zonas?.length) {
       query.andWhere('zona.id_zona IN (:...zonas)', {
@@ -381,20 +392,15 @@ export class SuscripcionesService {
           (fechaFin.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24),
         );
 
-        let estado = EstadoSuscripcion.ACTIVA;
-        if (diasRestantes < 0) {
-          estado = EstadoSuscripcion.VENCIDA;
-        } else if (sus.estado === EstadoSuscripcion.PENDIENTE_PAGO) {
-          estado = EstadoSuscripcion.PENDIENTE_PAGO;
-        }
+        const estado = sus.estado;
 
         if (filters?.estado && estado !== filters.estado) return null;
 
         return {
           id_cliente: cliente.id_cliente,
           cliente,
-          // sector: cliente.sector,
-          // zona: cliente.zona,
+          sector: cliente.sector,
+          zona: cliente.zona,
           tieneSuscripcion: true,
           estado,
           plan: sus.planVigencia.plan?.name,
