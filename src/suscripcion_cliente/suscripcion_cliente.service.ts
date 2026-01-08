@@ -143,10 +143,10 @@ export class SuscripcionesService {
     const ultimoPago = await this.pagoRepo.findOne({
       where: {
         empresa: {
-          id_empresa: user.id_empresa, // ✅ Usar empresa del usuario
+          id_empresa: user.id_empresa,
         },
       },
-      order: { id_pago: 'DESC' }, // ✅ Orden descendente para obtener el último
+      order: { id_pago: 'DESC' },
     });
 
     const consecutivo = ultimoPago ? ultimoPago.id_pago + 1 : 1;
@@ -180,10 +180,13 @@ export class SuscripcionesService {
         'Debe indicar la fecha de inicio del servicio',
       );
 
+    // 🔹 LÓGICA DE COBRANZA MEJORADA
+    // La duración de la vigencia representa el periodo (ej: mensual=30, trimestral=90)
+    // mesesPagados multiplica ese periodo
     const diasPorPeriodo = sus.planVigencia.duracion;
     const diasAplicados = mesesPagados * diasPorPeriodo;
 
-    // 🔹 Parsear la fecha manualmente como YYYY-MM-DD
+    // Parsear la fecha manualmente como YYYY-MM-DD
     const fechaString =
       typeof fechaInicioServicio === 'string'
         ? fechaInicioServicio
@@ -198,10 +201,24 @@ export class SuscripcionesService {
     const fechaAnterior = sus.fecha_fin;
     const folio = await this.generarFolio(user);
 
+    const hoyNormalizado = new Date();
+    hoyNormalizado.setHours(0, 0, 0, 0);
+
+    // 🔹 LÓGICA DE ESTADO SEGÚN FECHA DE INICIO
+    let estadoSuscripcion: EstadoSuscripcion;
+
+    if (fechaInicio > hoyNormalizado) {
+      // Si la fecha de inicio es futura → PAGADO CON ESPERA
+      estadoSuscripcion = EstadoSuscripcion.PAGADO_ESPERA_INICIO;
+    } else {
+      // Si la fecha de inicio es hoy o pasada → ACTIVA
+      estadoSuscripcion = EstadoSuscripcion.ACTIVA;
+    }
+
     // 🔹 Actualizamos suscripción
     sus.fecha_inicio = fechaInicio;
     sus.fecha_fin = fechaFin;
-    sus.estado = EstadoSuscripcion.ACTIVA;
+    sus.estado = estadoSuscripcion;
 
     await this.susRepo.save(sus);
 
@@ -232,15 +249,114 @@ export class SuscripcionesService {
       }),
     );
 
+    // 🔹 Cálculo de meses reales pagados
+    const mesesReales = (diasAplicados / diasPorPeriodo).toFixed(1);
+
     return {
       message: 'Pago registrado correctamente',
+      folio,
+      estadoSuscripcion: estadoSuscripcion,
       fechaInicioServicio: fechaInicio,
       fechaFinServicio: fechaFin,
       diasAplicados,
+      mesesPagados,
+      periodoVigencia: sus.planVigencia.nombre,
+      diasPorPeriodo,
+      mesesRealesCalculados: mesesReales,
+      montoTotal: pago.monto,
+      nota:
+        fechaInicio > hoyNormalizado
+          ? 'El servicio iniciará en la fecha programada. El estado cambiará automáticamente a ACTIVA cuando llegue la fecha de inicio.'
+          : 'El servicio está activo desde hoy.',
     };
   }
 
+  /**
+   * 🔹 FUNCIÓN AUTOMÁTICA DE ACTUALIZACIÓN DE ESTADOS
+   * Se ejecuta antes de devolver el resumen de clientes
+   */
+  private async actualizarEstadosSuscripciones(
+    user: UserActiveInterface,
+  ): Promise<void> {
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0); // Normalizar a medianoche
+
+    // Obtener todas las suscripciones de la empresa
+    const suscripciones = await this.susRepo.find({
+      where: { empresa: { id_empresa: user.id_empresa } },
+    });
+
+    const actualizaciones: Promise<any>[] = [];
+
+    for (const sus of suscripciones) {
+      const fechaFin = new Date(sus.fecha_fin);
+      fechaFin.setHours(0, 0, 0, 0);
+
+      const diasRestantes = Math.ceil(
+        (fechaFin.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24),
+      );
+
+      let nuevoEstado: EstadoSuscripcion | null = null;
+
+      // 🔹 LÓGICA DE ESTADOS AUTOMÁTICOS
+      if (sus.estado === EstadoSuscripcion.PENDIENTE_PAGO) {
+        // No cambiar si está pendiente de pago
+        continue;
+      }
+
+      // 🔹 NUEVA LÓGICA: PAGADO_ESPERA_INICIO → ACTIVA
+      if (sus.estado === EstadoSuscripcion.PAGADO_ESPERA_INICIO) {
+        const fechaInicio = new Date(sus.fecha_inicio);
+        fechaInicio.setHours(0, 0, 0, 0);
+
+        if (hoy >= fechaInicio) {
+          // Si hoy es igual o posterior a fecha_inicio → ACTIVA
+          nuevoEstado = EstadoSuscripcion.ACTIVA;
+        } else {
+          // Aún no llega la fecha de inicio, mantener estado
+          continue;
+        }
+      }
+
+      // 🔹 LÓGICA PARA SUSCRIPCIONES ACTIVAS
+      if (sus.estado === EstadoSuscripcion.ACTIVA) {
+        if (diasRestantes === 0) {
+          // 🔹 Si fecha_fin === hoy → PENDIENTE_RENOVAR
+          nuevoEstado = EstadoSuscripcion.PENDIENTE_RENOVAR;
+        }
+      }
+
+      // 🔹 LÓGICA PARA SUSCRIPCIONES VENCIDAS
+      if (diasRestantes < 0 && Math.abs(diasRestantes) >= 30) {
+        // 🔹 Si fecha_fin pasó hace 30+ días → VENCIDA
+        nuevoEstado = EstadoSuscripcion.VENCIDA;
+      } else if (
+        diasRestantes < 0 &&
+        Math.abs(diasRestantes) < 30 &&
+        sus.estado !== EstadoSuscripcion.PENDIENTE_RENOVAR &&
+        sus.estado !== EstadoSuscripcion.PAGADO_ESPERA_INICIO
+      ) {
+        // 🔹 Si pasó la fecha pero menos de 30 días → PENDIENTE_RENOVAR
+        nuevoEstado = EstadoSuscripcion.PENDIENTE_RENOVAR;
+      }
+
+      // Actualizar si hay cambio de estado
+      if (nuevoEstado && nuevoEstado !== sus.estado) {
+        sus.estado = nuevoEstado;
+        actualizaciones.push(this.susRepo.save(sus));
+      }
+    }
+
+    // Ejecutar todas las actualizaciones en paralelo
+    if (actualizaciones.length > 0) {
+      await Promise.all(actualizaciones);
+    }
+  }
+
   async resumenClientesSuscripcion(user: UserActiveInterface) {
+    // 🔹 PRIMERO ACTUALIZAMOS TODOS LOS ESTADOS AUTOMÁTICAMENTE
+    await this.actualizarEstadosSuscripciones(user);
+
     const clientes = await this.clienteRepo.find({
       where: { empresa: { id_empresa: user.id_empresa } },
     });
@@ -286,10 +402,8 @@ export class SuscripcionesService {
         (fechaFin.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24),
       );
 
-      let estado = EstadoSuscripcion.ACTIVA;
-
-      if (diasRestantes < 0) estado = EstadoSuscripcion.VENCIDA;
-      else if (!ultimoPago) estado = EstadoSuscripcion.PENDIENTE_PAGO;
+      // 🔹 Estado ya actualizado por la función automática
+      const estado = sus.estado;
 
       return {
         id_cliente: cliente.id_cliente,
@@ -305,7 +419,7 @@ export class SuscripcionesService {
         dias_restantes: diasRestantes,
         monto_pago: ultimoPago ? ultimoPago.monto : 0,
         meses_pagados: ultimoPago ? ultimoPago.meses_pagados : 0,
-        folio_pago: ultimoPago ? ultimoPago.folio : null, // 👈 AQUÍ
+        folio_pago: ultimoPago ? ultimoPago.folio : null,
       };
     });
   }
@@ -315,9 +429,17 @@ export class SuscripcionesService {
     filters?: {
       zonas?: number[];
       estado?: EstadoSuscripcion;
+      mes?: number;
+      anio?: number;
     },
   ) {
+    // 🔹 PRIMERO ACTUALIZAMOS TODOS LOS ESTADOS AUTOMÁTICAMENTE
+    await this.actualizarEstadosSuscripciones(user);
+
     const hoy = new Date();
+
+    const mesActual = filters?.mes ?? hoy.getMonth() + 1;
+    const anioActual = filters?.anio ?? hoy.getFullYear();
 
     const query = this.clienteRepo
       .createQueryBuilder('cliente')
@@ -335,6 +457,13 @@ export class SuscripcionesService {
       .where('cliente.empresa = :empresaId', {
         empresaId: user.id_empresa,
       });
+
+    query.andWhere('EXTRACT(MONTH FROM sus.fecha_inicio) = :mes', {
+      mes: mesActual,
+    });
+    query.andWhere('EXTRACT(YEAR FROM sus.fecha_inicio) = :anio', {
+      anio: anioActual,
+    });
 
     if (filters?.zonas?.length) {
       query.andWhere('zona.id_zona IN (:...zonas)', {
@@ -381,20 +510,15 @@ export class SuscripcionesService {
           (fechaFin.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24),
         );
 
-        let estado = EstadoSuscripcion.ACTIVA;
-        if (diasRestantes < 0) {
-          estado = EstadoSuscripcion.VENCIDA;
-        } else if (sus.estado === EstadoSuscripcion.PENDIENTE_PAGO) {
-          estado = EstadoSuscripcion.PENDIENTE_PAGO;
-        }
+        const estado = sus.estado;
 
         if (filters?.estado && estado !== filters.estado) return null;
 
         return {
           id_cliente: cliente.id_cliente,
           cliente,
-          // sector: cliente.sector,
-          // zona: cliente.zona,
+          sector: cliente.sector,
+          zona: cliente.zona,
           tieneSuscripcion: true,
           estado,
           plan: sus.planVigencia.plan?.name,
