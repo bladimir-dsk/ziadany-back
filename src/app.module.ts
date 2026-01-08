@@ -22,6 +22,7 @@ import { HistorialSuscripcionModule } from './historial-suscripcion/historial-su
 import { UbicacionesCamionModule } from './ubicaciones_camion/ubicaciones_camion.module';
 import { RutasDiariasModule } from './rutas_diarias/rutas_diarias.module';
 import { PuntosRecoleccionModule } from './puntos_recoleccion/puntos_recoleccion.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 dotenv.config();
 
@@ -30,6 +31,7 @@ dotenv.config();
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    ScheduleModule.forRoot(),
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.DB_HOST,
